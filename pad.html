@@ -1,0 +1,1012 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="color-scheme" content="dark light">
+<title>BeamBar Remote</title>
+<style>
+  :root {
+    --w: 300px;
+    --radius: 28px;
+    --glass: rgba(28, 28, 31, 0.6);
+    --ink: rgba(255, 255, 255, 0.94);
+    --ink-2: rgba(255, 255, 255, 0.56);
+    --ink-3: rgba(255, 255, 255, 0.32);
+    --ctrl: rgba(255, 255, 255, 0.085);
+    --ctrl-hover: rgba(255, 255, 255, 0.14);
+    --ctrl-press: rgba(255, 255, 255, 0.24);
+    --rim: rgba(255, 255, 255, 0.22);
+    --rim-soft: rgba(255, 255, 255, 0.07);
+    --shade: rgba(0, 0, 0, 0.22);
+    --fill: rgba(255, 255, 255, 0.92);
+    --glow: rgba(255, 255, 255, 0.16);
+    --accent: #ff453a;
+    --spring: cubic-bezier(0.22, 1.25, 0.36, 1);
+    --ease: cubic-bezier(0.25, 0.1, 0.25, 1);
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --glass: rgba(244, 244, 247, 0.62);
+      --ink: rgba(0, 0, 0, 0.9);
+      --ink-2: rgba(0, 0, 0, 0.52);
+      --ink-3: rgba(0, 0, 0, 0.3);
+      --ctrl: rgba(0, 0, 0, 0.06);
+      --ctrl-hover: rgba(0, 0, 0, 0.1);
+      --ctrl-press: rgba(0, 0, 0, 0.17);
+      --rim: rgba(255, 255, 255, 0.85);
+      --rim-soft: rgba(255, 255, 255, 0.5);
+      --shade: rgba(0, 0, 0, 0.08);
+      --fill: rgba(20, 20, 24, 0.9);
+      --glow: rgba(255, 255, 255, 0.6);
+      --accent: #ff3b30;
+    }
+  }
+
+  * { box-sizing: border-box; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: transparent; overflow: hidden; }
+  body {
+    width: var(--w);
+    font: 13px/1.25 -apple-system, "SF Pro Text", "Helvetica Neue", sans-serif;
+    color: var(--ink);
+    cursor: default;
+  }
+
+  .remote {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 34px 16px 16px;
+    border-radius: var(--radius);
+    background: var(--glass);
+    box-shadow:
+      inset 0 1px 0 var(--rim),
+      inset 0 0 0 0.5px var(--rim-soft),
+      inset 0 -1px 0 var(--shade);
+    overflow: hidden;
+  }
+  .remote::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(120% 55% at 18% -8%, var(--glow), transparent 62%),
+      radial-gradient(70% 40% at 100% 110%, rgba(255, 255, 255, 0.05), transparent 60%);
+  }
+
+  .close {
+    position: absolute; left: 13px; top: 13px;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    background: #ff5f57;
+    box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    color: #4c0002;
+    z-index: 3;
+    transition: filter 0.15s var(--ease);
+  }
+  .close::before { content: ""; position: absolute; inset: -8px; }
+  .close svg { width: 7px; height: 7px; stroke-width: 2.6; opacity: 0; transition: opacity 0.15s var(--ease); }
+  .close:hover svg { opacity: 1; }
+  .close:active { filter: brightness(0.8); }
+  .minimize { left: 33px; background: #febc2e; color: #985712; }
+  .minimize svg.expand { display: none; }
+  .remote.mini .minimize svg.collapse { display: none; }
+  .remote.mini .minimize svg.expand { display: block; }
+  .remote.mini > :not(.close):not(.minimize):not(.header) { display: none; }
+  .remote.mini .popover { display: block; }
+  .remote.mini .popover[hidden] { display: block; }
+
+  /* ---------- header ---------- */
+  .header { position: relative; display: flex; align-items: center; gap: 10px; height: 44px; z-index: 2; }
+  .round {
+    position: relative;
+    flex: 0 0 auto;
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    color: var(--ink);
+  }
+  .pill {
+    flex: 1 1 auto;
+    height: 44px;
+    border-radius: 22px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 1px;
+    padding: 0 12px;
+    text-align: center;
+    min-width: 0;
+  }
+  .pill .name { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .pill .name::after { content: " ›"; color: var(--ink-3); font-weight: 400; }
+  .pill .sub { font-size: 10.5px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .pill.alert .sub { color: #ff9f0a; }
+  .pill.alert .name::after { content: ""; }
+
+  .popover {
+    position: absolute; right: 0; top: 46px;
+    min-width: 150px;
+    padding: 6px;
+    border-radius: 14px;
+    background: var(--glass);
+    box-shadow: inset 0 1px 0 var(--rim), inset 0 0 0 0.5px var(--rim-soft), 0 12px 32px rgba(0, 0, 0, 0.35);
+    -webkit-backdrop-filter: blur(24px) saturate(1.4);
+    backdrop-filter: blur(24px) saturate(1.4);
+    transform-origin: top right;
+    transition: transform 0.3s var(--spring), opacity 0.18s var(--ease);
+  }
+  .popover[hidden] { display: block; opacity: 0; transform: scale(0.9); pointer-events: none; }
+  .popover .item {
+    padding: 7px 10px;
+    border-radius: 9px;
+    font-size: 12.5px;
+    white-space: nowrap;
+  }
+  .popover .item:hover { background: var(--ctrl-hover); }
+  .popover .item.danger { color: var(--accent); }
+  .popover .sep { height: 1px; margin: 4px 6px; background: var(--rim-soft); }
+
+  /* ---------- shared control look ---------- */
+  .ctrl {
+    background: var(--ctrl);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 -1px 0 rgba(0, 0, 0, 0.12);
+    transition: transform 0.42s var(--spring), background 0.18s var(--ease), box-shadow 0.18s var(--ease);
+    will-change: transform;
+  }
+  .ctrl:hover { background: var(--ctrl-hover); }
+  .ctrl.pressed, .ctrl:active {
+    background: var(--ctrl-press);
+    transform: scale(0.93);
+    transition-duration: 0.08s;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 0 0 6px rgba(255, 255, 255, 0.04);
+  }
+  .ctrl.lit { background: var(--fill); color: var(--glass); }
+  .ctrl.lit svg { color: var(--glass); }
+  .ctrl.lit:hover { background: var(--fill); filter: brightness(1.08); }
+  svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; display: block; }
+  svg.fill { fill: currentColor; stroke: none; }
+
+  /* ---------- now playing ---------- */
+  .media {
+    display: flex; flex-direction: column; gap: 8px;
+    padding: 10px 12px 10px;
+    border-radius: 18px;
+    background: var(--ctrl);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+  .media[hidden] { display: none; }
+  .media .top { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .media .art {
+    flex: 0 0 auto;
+    width: 44px; height: 44px;
+    border-radius: 10px;
+    background: var(--ctrl-hover) center / cover no-repeat;
+    box-shadow: inset 0 0 0 0.5px var(--rim-soft);
+  }
+  .media .text { flex: 1 1 auto; min-width: 0; }
+  .media .title { font-weight: 600; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .media .subtitle { font-size: 11px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+  .media .skip {
+    flex: 0 0 auto;
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    color: var(--ink);
+    font-size: 9px; font-weight: 700;
+    position: relative;
+  }
+  .media .skip svg { width: 18px; height: 18px; }
+  .media .skip span { position: absolute; font-size: 7px; font-weight: 700; top: 12px; }
+  .media .bar {
+    position: relative;
+    height: 14px;
+    cursor: pointer;
+  }
+  .media .track {
+    position: absolute; left: 0; right: 0; top: 5px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--ctrl-hover);
+    overflow: hidden;
+    transition: transform 0.25s var(--spring);
+  }
+  .media .bar:hover .track, .media .bar.dragging .track { transform: scaleY(1.6); }
+  .media .progress { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--fill); }
+  .media .times { display: flex; justify-content: space-between; font-size: 10px; color: var(--ink-2); font-variant-numeric: tabular-nums; margin-top: -4px; }
+
+  /* ---------- touch surface ---------- */
+  .surface {
+    --px: 50%; --py: 50%;
+    position: relative;
+    height: 222px;
+    border-radius: 24px;
+    background: var(--ctrl);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 -1px 0 rgba(0, 0, 0, 0.14), inset 0 0 0 0.5px rgba(255, 255, 255, 0.04);
+    overflow: hidden;
+    cursor: default;
+    transition: background 0.2s var(--ease), transform 0.4s var(--spring);
+  }
+  .surface:hover { background: var(--ctrl-hover); }
+  .surface.pressed { transform: scale(0.985); }
+  .surface .light {
+    position: absolute; inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.35s var(--ease);
+    background: radial-gradient(150px circle at var(--px) var(--py), var(--glow), transparent 72%);
+  }
+  .surface:hover .light { opacity: 1; }
+  .surface .flash { position: absolute; inset: 0; pointer-events: none; opacity: 0; }
+  .surface .flash.up    { background: linear-gradient(to bottom, var(--fill), transparent 45%); }
+  .surface .flash.down  { background: linear-gradient(to top, var(--fill), transparent 45%); }
+  .surface .flash.left  { background: linear-gradient(to right, var(--fill), transparent 45%); }
+  .surface .flash.right { background: linear-gradient(to left, var(--fill), transparent 45%); }
+  .surface .flash.center { background: radial-gradient(120px circle at var(--px) var(--py), var(--fill), transparent 70%); }
+  .surface .hint {
+    position: absolute; inset: 0;
+    display: grid; place-items: center;
+    text-align: center;
+    color: var(--ink-3);
+    font-size: 11.5px;
+    line-height: 1.5;
+    pointer-events: none;
+    transition: opacity 0.6s var(--ease);
+  }
+  .surface .hint.gone { opacity: 0; }
+  .surface .grip {
+    position: absolute; left: 50%; top: 50%;
+    width: 6px; height: 6px; margin: -3px 0 0 -3px;
+    border-radius: 50%;
+    background: var(--ink-3);
+    opacity: 0;
+    transition: opacity 0.6s var(--ease);
+  }
+  .surface .grip.shown { opacity: 0.6; }
+
+  /* typing overlay on the surface */
+  .typer {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    gap: 10px;
+    padding: 20px;
+    background: var(--glass);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s var(--ease);
+  }
+  .surface.typing .typer { opacity: 1; pointer-events: auto; }
+  .surface.typing .hint, .surface.typing .grip, .surface.typing .light { opacity: 0; }
+  .typer { background: color-mix(in srgb, var(--glass) 100%, transparent); background: var(--glass); }
+  .surface.typing { background: var(--ctrl-press); }
+  .typer .label { font-size: 11px; color: var(--ink-2); }
+  .typer .text {
+    font-size: 17px; font-weight: 500;
+    max-width: 100%;
+    text-align: center;
+    word-break: break-word;
+    min-height: 22px;
+  }
+  .typer .text::after {
+    content: "";
+    display: inline-block;
+    width: 2px; height: 18px;
+    margin-left: 2px;
+    vertical-align: -3px;
+    background: var(--ink);
+    animation: blink 1s steps(2) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* ---------- cluster ---------- */
+  .cluster { display: grid; grid-template-columns: 1fr 1fr 44px; grid-template-rows: repeat(3, 56px); gap: 12px 14px; }
+  .key {
+    position: relative;
+    height: 56px;
+    border-radius: 28px;
+    display: grid; place-items: center;
+    color: var(--ink);
+  }
+  .key svg { width: 22px; height: 22px; }
+  .key.listening { background: var(--accent); color: #fff; }
+  .key.listening svg { color: #fff; }
+  .key.listening::after {
+    content: "";
+    position: absolute; inset: -4px;
+    border-radius: 32px;
+    border: 2px solid var(--accent);
+    opacity: 0.6;
+    animation: ring 1.1s ease-out infinite;
+  }
+  @keyframes ring { from { transform: scale(1); opacity: 0.6; } to { transform: scale(1.18); opacity: 0; } }
+  .key.on { background: var(--fill); color: var(--glass); }
+  .key.on svg { color: var(--glass); }
+
+  .volume {
+    grid-row: 1 / span 3;
+    grid-column: 3;
+    position: relative;
+    height: 100%;
+    border-radius: 22px;
+    overflow: hidden;
+    cursor: ns-resize;
+    transition: transform 0.4s var(--spring);
+  }
+  .volume.pressed { transform: scaleX(1.08); }
+  .volume .fill { position: absolute; left: 0; right: 0; bottom: 0; height: 30%; background: var(--fill); transition: height 0.25s var(--ease); }
+  .volume.pressed .fill { transition: none; }
+  .volume .vicon { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); mix-blend-mode: difference; color: #fff; pointer-events: none; }
+  .volume .level {
+    position: absolute; left: 50%; top: 10px;
+    transform: translateX(-50%);
+    font-size: 11px; font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    mix-blend-mode: difference;
+    color: #fff;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.25s var(--ease);
+  }
+  .volume:hover .level, .volume.pressed .level { opacity: 1; }
+
+  /* ---------- chip rows ---------- */
+  .row { display: flex; flex-wrap: wrap; gap: 8px; min-height: 34px; }
+  .row::-webkit-scrollbar { display: none; }
+  .row[hidden] { display: none; }
+  .chip {
+    flex: 0 0 auto;
+    height: 34px;
+    padding: 0 14px;
+    border-radius: 17px;
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12.5px; font-weight: 500;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+  .chip.icon { width: 34px; padding: 0; justify-content: center; color: var(--ink-2); }
+  .chip.icon svg { width: 16px; height: 16px; }
+  .chip.scene::before { content: "✦"; font-size: 11px; color: var(--ink-2); }
+
+  /* ---------- command palette ---------- */
+  .palette {
+    position: absolute; left: 12px; right: 12px; top: 40px;
+    z-index: 5;
+    border-radius: 18px;
+    background: var(--glass);
+    box-shadow: inset 0 1px 0 var(--rim), inset 0 0 0 0.5px var(--rim-soft), 0 16px 40px rgba(0, 0, 0, 0.4);
+    -webkit-backdrop-filter: blur(28px) saturate(1.4);
+    backdrop-filter: blur(28px) saturate(1.4);
+    overflow: hidden;
+    transform-origin: top center;
+    transition: transform 0.3s var(--spring), opacity 0.18s var(--ease);
+  }
+  .palette[hidden] { display: block; opacity: 0; transform: scale(0.94) translateY(-6px); pointer-events: none; }
+  .palette input {
+    width: 100%;
+    border: 0; outline: 0;
+    background: transparent;
+    color: var(--ink);
+    font: 15px/1.3 -apple-system, "SF Pro Text", sans-serif;
+    padding: 12px 14px;
+    -webkit-user-select: text; user-select: text;
+  }
+  .palette input::placeholder { color: var(--ink-3); }
+  .palette .list { max-height: 230px; overflow-y: auto; padding: 0 6px 6px; scrollbar-width: none; }
+  .palette .list::-webkit-scrollbar { display: none; }
+  .palette .row-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 10px;
+    border-radius: 10px;
+    font-size: 12.5px;
+    cursor: default;
+  }
+  .palette .row-item .cmd { color: var(--ink-3); font-size: 11px; font-family: ui-monospace, "SF Mono", monospace; }
+  .palette .row-item.active { background: var(--ctrl-press); }
+  .palette .row-item.active .cmd { color: var(--ink-2); }
+  .palette .empty { padding: 8px 10px 10px; font-size: 12px; color: var(--ink-2); }
+  .palette .result { gap: 8px; justify-content: flex-start; }
+  .palette .result img, .palette .result .noart { width: 36px; height: 36px; border-radius: 8px; object-fit: cover; background: var(--ctrl-hover); flex: 0 0 auto; }
+  .palette .result .meta { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .palette .result .t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .palette .result .s { font-size: 10.5px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .palette .result .acts { display: flex; gap: 4px; flex: 0 0 auto; }
+  .palette .result button {
+    border: 0; border-radius: 8px; padding: 4px 8px;
+    background: var(--ctrl-hover); color: var(--ink);
+    font: 600 10.5px -apple-system, sans-serif;
+  }
+  .palette .result button:hover { background: var(--ctrl-press); }
+
+  .toast {
+    position: absolute; left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    padding: 10px 16px;
+    border-radius: 14px;
+    background: var(--fill);
+    color: var(--glass);
+    font-size: 15px; font-weight: 600;
+    pointer-events: none;
+    opacity: 0;
+    z-index: 4;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="remote" id="remote">
+  <div class="close" data-action="close" title="Hide (⌘W)"><svg viewBox="0 0 24 24"><path d="M5 5l14 14M19 5 5 19"/></svg></div>
+  <div class="close minimize" id="minimize" title="Collapse / expand (⌘M)">
+    <svg class="collapse" viewBox="0 0 24 24"><path d="M4 12h16"/></svg>
+    <svg class="expand" viewBox="0 0 24 24"><path d="M12 4v16M4 12h16"/></svg>
+  </div>
+
+  <div class="header" id="header">
+    <div class="round ctrl" data-key="VOLUME_MUTE" id="mute" title="Mute (M)">
+      <svg id="mute-on" viewBox="0 0 24 24" style="display:none"><path d="M11 5 6 9H3v6h3l5 4z" style="fill:currentColor;stroke:none"/><path d="m22 9-6 6M16 9l6 6"/></svg>
+      <svg id="mute-off" viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4z" style="fill:currentColor;stroke:none"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+    </div>
+    <div class="pill ctrl" id="pill" title="Projector">
+      <div class="name" id="name">Projector</div>
+      <div class="sub" id="sub">Connecting…</div>
+    </div>
+    <div class="round ctrl" id="power" title="Power">
+      <svg viewBox="0 0 24 24"><path d="M12 3v9"/><path d="M6.6 6.6a7.5 7.5 0 1 0 10.8 0"/></svg>
+    </div>
+    <div class="popover" id="power-menu" hidden>
+      <div class="item" data-power="standby">Standby now</div>
+      <div class="item" data-power="wake">Wake</div>
+      <div class="sep"></div>
+      <div class="item" data-power="sleep" data-minutes="15">Sleep in 15 min</div>
+      <div class="item" data-power="sleep" data-minutes="30">Sleep in 30 min</div>
+      <div class="item" data-power="sleep" data-minutes="60">Sleep in 1 hour</div>
+      <div class="item danger" data-power="cancel" id="cancel-sleep" hidden>Cancel sleep timer</div>
+    </div>
+  </div>
+
+  <div class="media" id="media" hidden>
+    <div class="top">
+      <div class="art" id="art"></div>
+      <div class="text">
+        <div class="title" id="mtitle"></div>
+        <div class="subtitle" id="msub"></div>
+      </div>
+      <div class="skip ctrl" data-skip="-10" title="Back 10 s"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg><span>10</span></div>
+      <div class="skip ctrl" data-skip="10" title="Forward 10 s"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg><span>10</span></div>
+    </div>
+    <div class="bar" id="bar"><div class="track"><div class="progress" id="progress"></div></div></div>
+    <div class="times"><span id="tpos">0:00</span><span id="tdur">0:00</span></div>
+  </div>
+
+  <div class="surface" id="surface">
+    <div class="light"></div>
+    <div class="flash" id="flash"></div>
+    <div class="grip" id="grip"></div>
+    <div class="hint" id="hint">Swipe to navigate<br>Click to select</div>
+    <div class="typer" id="typer">
+      <div class="label">Typing on projector · ⏎ submit · esc stop</div>
+      <div class="text" id="typed"></div>
+    </div>
+  </div>
+
+  <div class="cluster">
+    <div class="key ctrl" data-key="BACK" title="Back (Esc)"><svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg></div>
+    <div class="key ctrl" data-key="HOME" title="Home (H)"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/></svg></div>
+    <div class="volume ctrl" id="volume" title="Volume (+ / −)">
+      <div class="fill" id="vfill"></div>
+      <div class="level" id="vlevel">30</div>
+      <svg class="vicon" viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4z" style="fill:currentColor;stroke:none"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>
+    </div>
+    <div class="key ctrl" data-key="MEDIA_PLAY_PAUSE" title="Play / Pause (Space)"><svg viewBox="0 0 24 24" class="fill"><path d="M4 5.5v13a1 1 0 0 0 1.5.86L13 12 5.5 4.64A1 1 0 0 0 4 5.5z"/><rect x="15" y="5" width="2.4" height="14" rx="1"/><rect x="19.2" y="5" width="2.4" height="14" rx="1"/></svg></div>
+    <div class="key ctrl" id="mic" title="Hold to talk"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6"/></svg></div>
+    <div class="key ctrl" data-key="SETTINGS" title="Settings (S)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></div>
+    <div class="key ctrl" id="keyboard" title="Type on the projector (T)"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10"/></svg></div>
+  </div>
+
+  <div class="row" id="apps"></div>
+  <div class="row" id="scenes" hidden></div>
+
+  <div class="palette" id="palette" hidden>
+    <input id="palette-input" type="text" placeholder="Type a command… (volume 40, netflix, sleep 30, a show name)" spellcheck="false" autocomplete="off">
+    <div class="list" id="palette-list"></div>
+  </div>
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+(() => {
+  const STEP = 44;
+  const WHEEL_STEP = 70;
+  const $ = (id) => document.getElementById(id);
+  const surface = $('surface'), flash = $('flash'), hint = $('hint'), grip = $('grip');
+  const volume = $('volume'), vfill = $('vfill'), vlevel = $('vlevel');
+  const pill = $('pill'), mic = $('mic'), keyboard = $('keyboard'), typed = $('typed');
+  const powerMenu = $('power-menu');
+  const state = {
+    status: 'connecting', volume: 30, muted: false, apps: [], scenes: [], dragging: false, hinted: false,
+    media: null, mediaAt: 0, seeking: false, typing: false, buffer: '', listening: false, sleepIn: null,
+  };
+
+  const send = (msg) => {
+    if (window.__phone && window.__phoneSend) { window.__phoneSend(msg); return; }
+    const h = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.remote;
+    if (h) h.postMessage(msg); else console.log('send', JSON.stringify(msg));
+  };
+  const sendKey = (key) => send({ type: 'key', key });
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function press(el) { el.classList.add('pressed'); setTimeout(() => el.classList.remove('pressed'), 120); }
+  function pulse(dir) {
+    flash.className = 'flash ' + dir;
+    if (reduced) return;
+    flash.animate([{ opacity: 0 }, { opacity: 0.32, offset: 0.25 }, { opacity: 0 }], { duration: 380, easing: 'ease-out' });
+  }
+  function hideHint() {
+    if (state.hinted) return;
+    state.hinted = true;
+    hint.classList.add('gone');
+    grip.classList.add('shown');
+  }
+  function bindPress(el) {
+    el.addEventListener('pointerdown', (e) => { e.stopPropagation(); el.classList.add('pressed'); });
+    el.addEventListener('pointerup', () => el.classList.remove('pressed'));
+    el.addEventListener('pointerleave', () => el.classList.remove('pressed'));
+  }
+
+  // Buttons
+  document.querySelectorAll('[data-key]').forEach((el) => {
+    bindPress(el);
+    el.addEventListener('click', (e) => { e.stopPropagation(); sendKey(el.dataset.key); send({ type: 'haptic', kind: 'press' }); });
+  });
+  document.querySelectorAll('[data-action]').forEach((el) => {
+    bindPress(el);
+    el.addEventListener('click', (e) => { e.stopPropagation(); send({ type: el.dataset.action }); });
+  });
+  pill.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (state.status !== 'unpaired' && state.devices && state.devices.length) {
+      const menu = powerMenu;
+      menu.innerHTML = state.devices.map((d) => `<div class="item" data-device="${d.replace(/"/g, '')}">Switch to ${d.replace(/</g, '&lt;')}</div>`).join('') + '<div class="sep"></div><div class="item" data-device="">Reconnect</div>';
+      menu.querySelectorAll('.item').forEach((item) => item.addEventListener('click', (ev) => {
+        ev.stopPropagation(); menu.hidden = true;
+        send(item.dataset.device ? { type: 'device', name: item.dataset.device } : { type: 'reconnect' });
+        location.reload && window.__phone ? null : null;
+        setTimeout(() => rebuildPowerMenu(), 50);
+      }));
+      menu.hidden = false;
+      return;
+    }
+    send({ type: state.status === 'unpaired' ? 'pair' : 'reconnect' });
+  });
+  const powerMenuHtml = document.getElementById('power-menu').innerHTML;
+  function rebuildPowerMenu() {
+    powerMenu.innerHTML = powerMenuHtml;
+    powerMenu.querySelectorAll('.item').forEach((item) => {
+      item.addEventListener('click', (e) => {
+        e.stopPropagation();
+        powerMenu.hidden = true;
+        send({ type: 'power', action: item.dataset.power, minutes: Number(item.dataset.minutes || 0) });
+      });
+    });
+    $('cancel-sleep').hidden = state.sleepIn == null;
+  }
+
+  // Collapse / expand
+  const remote = $('remote');
+  function setMini(on) {
+    state.mini = on;
+    remote.classList.toggle('mini', on);
+    powerMenu.hidden = true;
+    if (on) setTyping(false);
+  }
+  const minimize = $('minimize');
+  minimize.addEventListener('pointerdown', (e) => e.stopPropagation());
+  minimize.addEventListener('click', (e) => { e.stopPropagation(); setMini(!state.mini); send({ type: 'mini', on: state.mini }); });
+  pill.addEventListener('dblclick', (e) => { e.stopPropagation(); setMini(!state.mini); send({ type: 'mini', on: state.mini }); });
+
+  // Header drag
+  $('header').addEventListener('pointerdown', (e) => { if (!e.target.closest('.ctrl, .popover')) send({ type: 'drag' }); });
+  pill.addEventListener('pointerdown', (e) => { e.stopPropagation(); send({ type: 'drag' }); });
+
+  // Power popover
+  const power = $('power');
+  bindPress(power);
+  power.addEventListener('click', (e) => { e.stopPropagation(); powerMenu.hidden = !powerMenu.hidden; });
+  powerMenu.querySelectorAll('.item').forEach((item) => {
+    item.addEventListener('click', (e) => {
+      e.stopPropagation();
+      powerMenu.hidden = true;
+      send({ type: 'power', action: item.dataset.power, minutes: Number(item.dataset.minutes || 0) });
+    });
+  });
+  document.addEventListener('pointerdown', (e) => { if (!e.target.closest('#power, #power-menu')) powerMenu.hidden = true; });
+
+  // Now playing
+  const fmt = (s) => {
+    s = Math.max(0, Math.floor(s || 0));
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+    return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(sec).padStart(2, '0');
+  };
+  function currentPosition() {
+    const m = state.media;
+    if (!m) return 0;
+    const elapsed = m.state === 'PLAYING' ? (Date.now() - state.mediaAt) / 1000 * (m.rate || 1) : 0;
+    return Math.min(m.duration || Infinity, (m.position || 0) + elapsed);
+  }
+  function renderMedia() {
+    const m = state.media;
+    const card = $('media');
+    if (!m || !m.title) { card.hidden = true; return; }
+    card.hidden = false;
+    $('mtitle').textContent = m.title;
+    $('msub').textContent = m.subtitle || (m.state === 'PAUSED' ? 'Paused' : '');
+    $('art').style.backgroundImage = m.image ? `url("${m.image}")` : '';
+    tickMedia();
+  }
+  function tickMedia() {
+    const m = state.media;
+    if (!m || state.seeking || $('media').hidden) return;
+    const pos = currentPosition();
+    $('tpos').textContent = fmt(pos);
+    $('tdur').textContent = m.duration ? fmt(m.duration) : '–:––';
+    $('progress').style.width = m.duration ? (pos / m.duration * 100) + '%' : '0%';
+  }
+  setInterval(tickMedia, 250);
+  document.querySelectorAll('[data-skip]').forEach((el) => {
+    bindPress(el);
+    el.addEventListener('click', (e) => { e.stopPropagation(); send({ type: 'media', action: 'skip', delta: Number(el.dataset.skip) }); });
+  });
+  const bar = $('bar');
+  const ratioAt = (e) => { const r = bar.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)); };
+  bar.addEventListener('pointerdown', (e) => {
+    if (!state.media || !state.media.duration) return;
+    e.stopPropagation();
+    bar.setPointerCapture(e.pointerId);
+    state.seeking = true;
+    bar.classList.add('dragging');
+    const pos = ratioAt(e) * state.media.duration;
+    $('progress').style.width = (ratioAt(e) * 100) + '%';
+    $('tpos').textContent = fmt(pos);
+  });
+  bar.addEventListener('pointermove', (e) => {
+    if (!state.seeking) return;
+    const pos = ratioAt(e) * state.media.duration;
+    $('progress').style.width = (ratioAt(e) * 100) + '%';
+    $('tpos').textContent = fmt(pos);
+  });
+  const endSeek = (e) => {
+    if (!state.seeking) return;
+    state.seeking = false;
+    bar.classList.remove('dragging');
+    const pos = ratioAt(e) * state.media.duration;
+    state.media.position = pos; state.mediaAt = Date.now();
+    send({ type: 'media', action: 'seek', position: Math.round(pos) });
+  };
+  bar.addEventListener('pointerup', endSeek);
+  bar.addEventListener('pointercancel', endSeek);
+
+  // Command palette (⌘K or /)
+  const palette = $('palette'), paletteInput = $('palette-input'), paletteList = $('palette-list');
+  let paletteIndex = 0, paletteItems = [];
+  function toast(text) {
+    const el = $('toast');
+    el.textContent = text;
+    el.animate([{ opacity: 0, transform: 'translate(-50%, -50%) scale(0.9)' }, { opacity: 1, transform: 'translate(-50%, -50%) scale(1)', offset: 0.15 }, { opacity: 1, offset: 0.7 }, { opacity: 0 }], { duration: 1100, easing: 'ease-out' });
+  }
+  function fuzzy(query, text) {
+    query = query.toLowerCase(); text = text.toLowerCase();
+    if (!query) return 1;
+    if (text.includes(query)) return 3;
+    let qi = 0;
+    for (const ch of text) if (ch === query[qi]) qi++;
+    return qi === query.length ? 1 : 0;
+  }
+  function renderPalette() {
+    const q = paletteInput.value.trim();
+    const all = state.commands || [];
+    paletteItems = all.map((c) => ({ label: c[0], cmd: c[1], score: Math.max(fuzzy(q, c[0]), fuzzy(q, c[1])) }))
+      .filter((c) => c.score > 0).sort((a, b) => b.score - a.score).slice(0, 8);
+    if (q && !paletteItems.some((c) => c.cmd === q)) paletteItems.push({ label: q.match(/^(vol|volume|sleep|skip|app|scene|open|type|key)\b/i) ? 'Run “' + q + '”' : 'Search “' + q + '” on YouTube', cmd: q });
+    paletteIndex = Math.min(paletteIndex, Math.max(0, paletteItems.length - 1));
+    paletteList.innerHTML = '';
+    if (!paletteItems.length) { paletteList.innerHTML = '<div class="empty">No matches</div>'; return; }
+    paletteItems.forEach((item, i) => {
+      const row = document.createElement('div');
+      row.className = 'row-item' + (i === paletteIndex ? ' active' : '');
+      row.innerHTML = `<span>${item.label.replace(/</g, '&lt;')}</span><span class="cmd">${item.cmd.replace(/</g, '&lt;')}</span>`;
+      row.addEventListener('pointerdown', (e) => e.stopPropagation());
+      row.addEventListener('click', (e) => { e.stopPropagation(); runPalette(item); });
+      paletteList.appendChild(row);
+    });
+  }
+  function runPalette(item) {
+    send({ type: 'command', text: item.cmd });
+    toast(item.label);
+    setPalette(false);
+  }
+  function setPalette(on) {
+    palette.hidden = !on;
+    if (on) { paletteInput.value = ''; paletteIndex = 0; renderPalette(); setTimeout(() => paletteInput.focus(), 30); }
+    else paletteInput.blur();
+  }
+  let searchTimer = null, searchResults = { query: '', results: [] };
+  paletteInput.addEventListener('input', () => {
+    paletteIndex = 0; renderPalette();
+    clearTimeout(searchTimer);
+    const q = paletteInput.value.trim();
+    if (q.length >= 3 && !q.match(/^(vol|volume|sleep|skip|app|scene|open|type|key|remote|device|seek|cast|mute|play|pause|home|back|standby|wake|focus)\b/i)) {
+      searchTimer = setTimeout(() => send({ type: 'search', query: q }), 450);
+    } else renderResults();
+  });
+  function renderResults() {
+    let box = $('palette-results');
+    if (!box) { box = document.createElement('div'); box.id = 'palette-results'; box.className = 'list'; palette.appendChild(box); }
+    const q = paletteInput.value.trim();
+    if (palette.hidden || !q || searchResults.query !== q || !searchResults.results.length) { box.innerHTML = ''; return; }
+    box.innerHTML = '';
+    for (const r of searchResults.results) {
+      const row = document.createElement('div');
+      row.className = 'row-item result';
+      const art = r.image ? `<img src="${r.image}" alt="">` : '<span class="noart"></span>';
+      let actions = '';
+      if (r.kind === 'youtube') actions = `<button data-link="${r.link}">Play</button>`;
+      else actions = `<button data-link="${r.netflix}">Netflix</button><button data-link="${r.prime}">Prime</button><button data-link="${r.link}">Trailer</button>`;
+      row.innerHTML = `${art}<span class="meta"><span class="t">${r.title.replace(/</g, '&lt;')}</span><span class="s">${(r.subtitle || '').replace(/</g, '&lt;')}</span></span><span class="acts">${actions}</span>`;
+      row.addEventListener('pointerdown', (e) => e.stopPropagation());
+      row.querySelectorAll('button').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); send({ type: 'openLink', text: b.dataset.link }); toast(r.title); setPalette(false); }));
+      box.appendChild(row);
+    }
+  }
+  paletteInput.addEventListener('keydown', (e) => {
+    e.stopPropagation();
+    if (e.key === 'Escape') setPalette(false);
+    else if (e.key === 'ArrowDown') { paletteIndex = Math.min(paletteIndex + 1, paletteItems.length - 1); renderPalette(); e.preventDefault(); }
+    else if (e.key === 'ArrowUp') { paletteIndex = Math.max(paletteIndex - 1, 0); renderPalette(); e.preventDefault(); }
+    else if (e.key === 'Enter' && paletteItems[paletteIndex]) runPalette(paletteItems[paletteIndex]);
+  });
+  palette.addEventListener('pointerdown', (e) => e.stopPropagation());
+  document.addEventListener('pointerdown', (e) => { if (!palette.hidden && !e.target.closest('#palette')) setPalette(false); });
+
+  // Touch surface
+  let origin = null, moved = false, acc = { x: 0, y: 0 };
+  const samples = [];
+  const dirOf = (dx, dy) => Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+  const KEY = { up: 'DPAD_UP', down: 'DPAD_DOWN', left: 'DPAD_LEFT', right: 'DPAD_RIGHT' };
+  function step(dir) { sendKey(KEY[dir]); pulse(dir); hideHint(); send({ type: 'haptic', kind: 'step' }); }
+  surface.addEventListener('pointermove', (e) => {
+    const r = surface.getBoundingClientRect();
+    surface.style.setProperty('--px', (e.clientX - r.left) + 'px');
+    surface.style.setProperty('--py', (e.clientY - r.top) + 'px');
+    if (!origin) return;
+    samples.push({ x: e.clientX, t: performance.now() });
+    if (samples.length > 6) samples.shift();
+    const dx = e.clientX - origin.x, dy = e.clientY - origin.y;
+    if (scrub.active) { scrubPreview(e.clientX - scrub.startX); return; }
+    if (Math.hypot(dx, dy) < STEP) return;
+    moved = true;
+    if (state.media && state.media.duration && Math.abs(dx) > Math.abs(dy)) {
+      scrub.active = true; scrub.startX = origin.x;
+      scrubPreview(e.clientX - scrub.startX);
+      return;
+    }
+    step(dirOf(dx, dy));
+    origin = { x: e.clientX, y: e.clientY };
+  });
+  const scrub = { active: false, startX: 0, secs: 0 };
+  function scrubPreview(dx) {
+    scrub.secs = Math.round(dx / 3 / 5) * 5;
+    const el = $('toast');
+    el.textContent = (scrub.secs > 0 ? '+' : '') + scrub.secs + ' s';
+    el.style.opacity = 1;
+    el.style.transform = 'translate(-50%, -50%)';
+  }
+  surface.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0 || state.typing) return;
+    surface.setPointerCapture(e.pointerId);
+    origin = { x: e.clientX, y: e.clientY };
+    moved = false;
+    samples.length = 0;
+    samples.push({ x: e.clientX, t: performance.now() });
+    surface.classList.add('pressed');
+  });
+  function flingSeconds() {
+    if (samples.length < 3 || !state.media || !state.media.duration) return 0;
+    const a = samples[0], b = samples[samples.length - 1];
+    const dt = b.t - a.t;
+    if (dt <= 0) return 0;
+    const v = (b.x - a.x) / dt;
+    if (Math.abs(v) < 1.4) return 0;
+    return Math.max(-120, Math.min(120, Math.round(v * 25 / 5) * 5));
+  }
+  const release = () => {
+    if (origin && !moved) { sendKey('DPAD_CENTER'); pulse('center'); hideHint(); send({ type: 'haptic', kind: 'press' }); }
+    else if (scrub.active) {
+      const secs = scrub.secs || flingSeconds();
+      $('toast').style.opacity = 0;
+      if (secs) { send({ type: 'media', action: 'skip', delta: secs }); toast((secs > 0 ? '+' : '') + secs + ' s'); send({ type: 'haptic', kind: 'edge' }); }
+    }
+    scrub.active = false; scrub.secs = 0;
+    origin = null; moved = false;
+    surface.classList.remove('pressed');
+  };
+  surface.addEventListener('pointerup', release);
+  surface.addEventListener('pointercancel', () => { origin = null; moved = false; surface.classList.remove('pressed'); });
+  surface.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    if (state.typing) return;
+    acc.x += e.deltaX; acc.y += e.deltaY;
+    if (Math.abs(acc.x) >= WHEEL_STEP) { step(acc.x > 0 ? 'left' : 'right'); acc.x = 0; acc.y = 0; }
+    else if (Math.abs(acc.y) >= WHEEL_STEP) { step(acc.y > 0 ? 'up' : 'down'); acc.x = 0; acc.y = 0; }
+  }, { passive: false });
+
+  // Volume
+  let lastSent = 0, sendTimer = null;
+  function showVolume(level) { vfill.style.height = Math.max(0, Math.min(100, level)) + '%'; vlevel.textContent = Math.round(level); }
+  function setVolume(level, final) {
+    level = Math.round(Math.max(0, Math.min(100, level)));
+    state.volume = level;
+    showVolume(level);
+    const now = Date.now();
+    clearTimeout(sendTimer);
+    if (final || now - lastSent > 90) { lastSent = now; send({ type: 'volume', level }); }
+    else sendTimer = setTimeout(() => { lastSent = Date.now(); send({ type: 'volume', level }); }, 90);
+  }
+  const levelAt = (e) => { const r = volume.getBoundingClientRect(); return (1 - (e.clientY - r.top) / r.height) * 100; };
+  volume.addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+    volume.setPointerCapture(e.pointerId);
+    state.dragging = true;
+    volume.classList.add('pressed');
+    setVolume(levelAt(e), false);
+  });
+  volume.addEventListener('pointermove', (e) => { if (state.dragging) setVolume(levelAt(e), false); });
+  const endVolume = (e) => { if (!state.dragging) return; state.dragging = false; volume.classList.remove('pressed'); setVolume(levelAt(e), true); };
+  volume.addEventListener('pointerup', endVolume);
+  volume.addEventListener('pointercancel', endVolume);
+  volume.addEventListener('wheel', (e) => { e.preventDefault(); setVolume(state.volume - Math.sign(e.deltaY) * 2, true); }, { passive: false });
+
+  // Hold-to-talk
+  const startVoice = () => { if (state.listening) return; state.listening = true; mic.classList.add('listening'); send({ type: 'voice', action: 'start' }); };
+  const stopVoice = () => { if (!state.listening) return; state.listening = false; mic.classList.remove('listening'); send({ type: 'voice', action: 'stop' }); };
+  mic.addEventListener('pointerdown', (e) => { e.stopPropagation(); mic.setPointerCapture(e.pointerId); startVoice(); });
+  mic.addEventListener('pointerup', stopVoice);
+  mic.addEventListener('pointercancel', stopVoice);
+
+  // Typing mode
+  function setTyping(on) {
+    state.typing = on;
+    state.buffer = '';
+    typed.textContent = '';
+    surface.classList.toggle('typing', on);
+    keyboard.classList.toggle('on', on);
+    powerMenu.hidden = true;
+  }
+  bindPress(keyboard);
+  keyboard.addEventListener('click', (e) => { e.stopPropagation(); setTyping(!state.typing); });
+  function typeKey(e) {
+    if (e.key === 'Escape') { setTyping(false); return; }
+    if (e.key === 'Enter') { sendKey('ENTER'); return; }
+    if (e.key === 'Backspace') {
+      if (state.buffer) { state.buffer = state.buffer.slice(0, -1); send({ type: 'text', text: state.buffer, backspace: true }); }
+      else sendKey('DEL');
+    } else if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      state.buffer += e.key;
+      send({ type: 'text', text: state.buffer, char: e.key });
+    } else return;
+    typed.textContent = state.buffer;
+  }
+
+  // Chip rows
+  function chip(label, cls, onClick) {
+    const el = document.createElement('div');
+    el.className = 'chip ctrl ' + (cls || '');
+    if (label) el.textContent = label;
+    el.addEventListener('click', (e) => { e.stopPropagation(); press(el); onClick(); });
+    return el;
+  }
+  function renderRows() {
+    const apps = $('apps');
+    apps.innerHTML = '';
+    for (const app of state.apps) apps.appendChild(chip(app.label, '', () => send({ type: 'launch', link: app.link })));
+    const link = chip('', 'icon', () => send({ type: 'openLink' }));
+    link.title = 'Open a video link or search YouTube (⌘V to paste)';
+    link.innerHTML = '<svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>';
+    apps.appendChild(link);
+    const add = chip('', 'icon', () => send({ type: 'addApp' }));
+    add.title = 'Add app';
+    add.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>';
+    apps.appendChild(add);
+
+    const scenes = $('scenes');
+    scenes.innerHTML = '';
+    scenes.hidden = state.scenes.length === 0;
+    for (const scene of state.scenes) scenes.appendChild(chip(scene, 'scene', () => send({ type: 'scene', name: scene })));
+  }
+
+  // Keyboard
+  const KEYS = {
+    ArrowUp: 'DPAD_UP', ArrowDown: 'DPAD_DOWN', ArrowLeft: 'DPAD_LEFT', ArrowRight: 'DPAD_RIGHT',
+    Enter: 'DPAD_CENTER', Escape: 'BACK', Backspace: 'BACK', ' ': 'MEDIA_PLAY_PAUSE',
+    h: 'HOME', m: 'VOLUME_MUTE', s: 'SETTINGS', ',': 'MEDIA_REWIND', '.': 'MEDIA_FAST_FORWARD',
+  };
+  const DIR = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', Enter: 'center' };
+  window.addEventListener('keydown', (e) => {
+    if (e.metaKey && e.key.toLowerCase() === 'w') { send({ type: 'close' }); return; }
+    if (e.metaKey && e.key.toLowerCase() === 'm') { setMini(!state.mini); send({ type: 'mini', on: state.mini }); return; }
+    if ((e.metaKey && e.key.toLowerCase() === 'k') || (!state.typing && e.key === '/')) { setPalette(palette.hidden); e.preventDefault(); return; }
+    if (!palette.hidden) return;
+    if (e.metaKey && e.key.toLowerCase() === 'v') return;
+    if (state.typing) { e.preventDefault(); typeKey(e); return; }
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key === '=' || e.key === '+') { setVolume(state.volume + 2, true); e.preventDefault(); return; }
+    if (e.key === '-' || e.key === '_') { setVolume(state.volume - 2, true); e.preventDefault(); return; }
+    if (e.key.toLowerCase() === 't') { setTyping(true); e.preventDefault(); return; }
+    if (e.key.toLowerCase() === 'v' && !e.repeat) { startVoice(); e.preventDefault(); return; }
+    const key = KEYS[e.key] || KEYS[e.key.toLowerCase()];
+    if (!key) return;
+    e.preventDefault();
+    sendKey(key);
+    if (DIR[e.key]) { pulse(DIR[e.key]); hideHint(); }
+    const btn = document.querySelector(`[data-key="${key}"]`);
+    if (btn) press(btn);
+  });
+  window.addEventListener('keyup', (e) => { if (e.key.toLowerCase() === 'v' && !state.typing) stopVoice(); });
+  window.addEventListener('paste', (e) => {
+    const text = (e.clipboardData || window.clipboardData).getData('text').trim();
+    if (!text) return;
+    e.preventDefault();
+    if (state.typing) { state.buffer += text; typed.textContent = state.buffer; send({ type: 'text', text: state.buffer }); }
+    else send({ type: 'openLink', text });
+  });
+
+  // Report height so the window can follow the content
+  new ResizeObserver(() => send({ type: 'resize', height: Math.ceil($('remote').getBoundingClientRect().height) })).observe($('remote'));
+
+  // Status from Python
+  window.remote = {
+    setStatus(s) {
+      state.status = s.state;
+      $('name').textContent = s.name || 'Projector';
+      const sub = $('sub');
+      pill.classList.remove('alert');
+      if (s.state === 'connected') {
+        const parts = [];
+        if (state.listening) parts.push('Listening…');
+        else if (s.app) parts.push(s.app);
+        if (s.volume != null) parts.push(s.muted ? 'Muted' : 'Vol ' + s.volume);
+        if (s.sleep_in != null) parts.push('Sleep ' + s.sleep_in + 'm');
+        sub.textContent = parts.join(' · ') || 'Connected';
+      } else if (s.state === 'unpaired') { sub.textContent = 'Not paired · click to pair'; pill.classList.add('alert'); }
+      else if (s.state === 'offline') { sub.textContent = 'Offline · click to retry'; pill.classList.add('alert'); }
+      else sub.textContent = 'Connecting…';
+      if (s.volume != null && !state.dragging) { state.volume = s.volume; showVolume(s.volume); }
+      state.muted = !!s.muted;
+      $('mute-on').style.display = state.muted ? '' : 'none';
+      $('mute-off').style.display = state.muted ? 'none' : '';
+      $('mute').classList.toggle('lit', state.muted);
+      $('cancel-sleep').hidden = s.sleep_in == null;
+      if (!state.seeking) {
+        state.media = s.media && s.media.title ? s.media : null;
+        state.mediaAt = Date.now();
+        renderMedia();
+      }
+      const rows = JSON.stringify([s.apps, s.scenes]);
+      if (rows !== state.rowsKey) { state.rowsKey = rows; state.apps = s.apps || []; state.scenes = s.scenes || []; renderRows(); }
+      if (s.listening === false && state.listening) stopVoice();
+      if (s.mini != null && state.miniApplied !== true) { state.miniApplied = true; setMini(!!s.mini); }
+      if (s.commands) state.commands = s.commands;
+      state.devices = s.devices || [];
+      state.sleepIn = s.sleep_in;
+    },
+    setMini,
+    openPalette() { setPalette(true); },
+    setSearchResults(payload) { searchResults = payload; renderResults(); },
+    setTyping,
+  };
+  renderRows();
+})();
+</script>
+</body>
+</html>

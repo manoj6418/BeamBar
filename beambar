@@ -1,0 +1,4 @@
+#!/bin/zsh
+# Command-line remote. Works through a symlink (e.g. /opt/homebrew/bin/beambar).
+DIR="${0:A:h}"
+exec "$DIR/.venv/bin/python" "$DIR/cli.py" "$@"
