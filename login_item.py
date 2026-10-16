@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 # Third Party Library
+from paths import APP_BUNDLE, FROZEN
 from paths import LOG_FILE as LOG
 
 LABEL = 'dev.beambar.app'
@@ -35,7 +36,8 @@ def install():
     PLIST.parent.mkdir(parents=True, exist_ok=True)
     plist = {
         'Label': LABEL,
-        'ProgramArguments': [sys.executable, str(APP_DIR / 'app.py')],
+        'ProgramArguments': ([str(APP_BUNDLE / 'Contents' / 'MacOS' / 'BeamBar')] if FROZEN
+                             else [sys.executable, str(APP_DIR / 'app.py')]),
         'WorkingDirectory': str(APP_DIR),
         'RunAtLoad': True,
         'KeepAlive': {'SuccessfulExit': False},

@@ -12,11 +12,13 @@ from pathlib import Path
 from aiohttp import web, WSMsgType
 from zeroconf import ServiceInfo, Zeroconf
 
+from paths import PHONE_HOSTNAME as HOSTNAME
+from paths import RESOURCES
+
 log = logging.getLogger('beambar.phone')
 
-PAD_HTML = Path(__file__).with_name('pad.html')
+PAD_HTML = RESOURCES / 'pad.html'
 PORT = 8788
-from paths import PHONE_HOSTNAME as HOSTNAME
 PHONE_HEAD = '''<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -116,7 +118,7 @@ class PhoneServer:
         return web.Response(text=html, content_type='text/html')
 
     async def icon(self, request):
-        drawn = Path(__file__).resolve().parent / 'assets' / 'icon-512.png'
+        drawn = RESOURCES / 'assets' / 'icon-512.png'
         if drawn.exists():
             return web.Response(body=drawn.read_bytes(), content_type='image/png')
 

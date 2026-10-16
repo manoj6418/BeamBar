@@ -39,7 +39,7 @@
   svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; display: block; }
   svg.fill { fill: currentColor; stroke: none; }
 
-  .wrap { padding: 14px 14px 12px; display: flex; flex-direction: column; gap: 12px; }
+  .wrap { padding: 14px 14px 12px; }
 
   /* Header */
   .head { display: flex; align-items: center; gap: 10px; }
@@ -146,18 +146,44 @@
   .menu .sep { height: 1px; margin: 4px 6px; background: var(--line); }
   .menu .item.muted { color: var(--ink-3); pointer-events: none; }
 
+  /* Pages: the main view and "More" slide sideways */
+  .pages { position: relative; overflow: hidden; }
+  .page { transition: transform 0.32s var(--spring), opacity 0.2s var(--ease); }
+  .page.more { position: absolute; inset: 0 0 auto 0; transform: translateX(100%); opacity: 0; pointer-events: none; }
+  body.show-more .page.main { transform: translateX(-30%); opacity: 0; pointer-events: none; position: absolute; inset: 0 0 auto 0; }
+  body.show-more .page.more { position: relative; transform: none; opacity: 1; pointer-events: auto; }
+  .stack { display: flex; flex-direction: column; gap: 12px; }
+  .page.more .stack { gap: 8px; }
+  .more-head { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; }
+  .more-head .title { font-weight: 650; font-size: 14px; }
+  .group { border-radius: 14px; background: var(--card); padding: 4px; }
+  .page.more .label { margin: 6px 2px 0; }
+  .row { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 10px; font-size: 13px; transition: background 0.15s; }
+  .row:hover { background: var(--card-2); }
+  .row svg { width: 17px; height: 17px; color: var(--ink-2); flex: 0 0 auto; }
+  .row .grow { flex: 1; }
+  .row .hint { font-size: 11px; color: var(--ink-3); }
+  .row.quit { color: #ff453a; justify-content: center; font-weight: 500; }
+  .switch { width: 34px; height: 20px; border-radius: 10px; background: var(--card-2); position: relative; flex: 0 0 auto; transition: background 0.2s; }
+  .switch::after { content: ""; position: absolute; left: 2px; top: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); transition: transform 0.25s var(--spring); }
+  .switch.on { background: var(--beam); }
+  .switch.on::after { transform: translateX(14px); }
+
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
 <body>
 <div class="wrap" id="wrap">
+ <div class="pages">
+ <div class="page main" id="page-main">
+  <div class="stack">
   <div class="head">
     <div class="device" id="device" title="Switch device">
       <div class="dot" id="dot"></div>
       <div class="text"><div class="name" id="name">BeamBar</div><div class="sub" id="sub">Connecting…</div></div>
     </div>
     <div class="icon-btn" id="power" title="Power and sleep timer"><svg viewBox="0 0 24 24"><path d="M12 3v9"/><path d="M6.6 6.6a7.5 7.5 0 1 0 10.8 0"/></svg></div>
-    <div class="icon-btn" id="more" title="All options"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg></div>
+    <div class="icon-btn" id="more" title="More"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg></div>
   </div>
 
   <div class="banner" id="banner">
@@ -199,6 +225,46 @@
     <div class="action" data-do="openLink"><svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>Open link</div>
     <div class="action" data-do="type"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10"/></svg>Type</div>
   </div>
+  </div>
+ </div>
+
+ <div class="page more" id="page-more">
+  <div class="stack">
+  <div class="more-head">
+    <div class="icon-btn" id="back" title="Back (Esc)"><svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg></div>
+    <div class="title">More</div>
+  </div>
+
+  <div class="label">Cast from this Mac</div>
+  <div class="group">
+    <div class="row" data-do="castFile"><svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg><span class="grow">Cast a file…</span><span class="hint">video, music, photos</span></div>
+    <div class="row" data-do="castUrl"><svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg><span class="grow">Cast a link…</span></div>
+    <div class="row" data-do="stopCast"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg><span class="grow">Stop casting</span></div>
+  </div>
+
+  <div class="label">Send to the TV</div>
+  <div class="group">
+    <div class="row" data-do="sendTab"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/></svg><span class="grow">Current browser tab</span></div>
+    <div class="row" data-do="mirror"><svg viewBox="0 0 24 24"><path d="M5 17H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1"/><path d="m12 15 5 6H7z"/></svg><span class="grow">Mirror my screen</span><span class="hint">AirPlay</span></div>
+  </div>
+
+  <div class="label">Settings</div>
+  <div class="group">
+    <div class="row" data-do="toggleHotkeys"><svg viewBox="0 0 24 24"><path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3"/></svg><span class="grow">Global hotkeys <span class="hint">⌃⌥</span></span><span class="switch" id="sw-hotkeys"></span></div>
+    <div class="row" data-do="toggleLogin"><svg viewBox="0 0 24 24"><path d="M12 3v9"/><path d="M6.6 6.6a7.5 7.5 0 1 0 10.8 0"/></svg><span class="grow">Start at login</span><span class="switch" id="sw-login"></span></div>
+  </div>
+
+  <div class="label">Connection</div>
+  <div class="group">
+    <div class="row" data-do="pair"><svg viewBox="0 0 24 24"><path d="M9 17H7A5 5 0 0 1 7 7h2M15 7h2a5 5 0 0 1 0 10h-2M8 12h8"/></svg><span class="grow">Pair with TV…</span></div>
+    <div class="row" data-do="findDevices"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span class="grow">Find devices on the network</span></div>
+    <div class="row" data-do="reconnect"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg><span class="grow">Reconnect</span></div>
+  </div>
+
+  <div class="group" style="margin-top: 6px;"><div class="row quit" data-do="quit">Quit BeamBar</div></div>
+  </div>
+ </div>
+ </div>
 </div>
 
 <div class="menu" id="device-menu"></div>
@@ -252,7 +318,9 @@
     else send({ type: item.dataset.act === 'find' ? 'findDevices' : 'reconnect' });
     $('device-menu').classList.remove('open');
   });
-  $('more').addEventListener('click', () => send({ type: 'menu' }));
+  const showMore = (on) => { document.body.classList.toggle('show-more', on); requestAnimationFrame(reportSize); setTimeout(reportSize, 350); };
+  $('more').addEventListener('click', () => showMore(true));
+  $('back').addEventListener('click', () => showMore(false));
   $('banner-btn').addEventListener('click', () => send({ type: (state.status && state.status.state === 'unpaired') ? 'pair' : 'reconnect' }));
 
   // Player
@@ -354,6 +422,8 @@
     }
     $('scenes-label').hidden = scenes.hidden = !(s.scenes || []).length;
     $('cancel-sleep').hidden = s.sleep_in == null;
+    $('sw-hotkeys').classList.toggle('on', !!s.hotkeys);
+    $('sw-login').classList.toggle('on', !!s.login);
     reportSize();
   }
 
@@ -371,13 +441,14 @@
 
   let lastHeight = 0;
   function reportSize() {
-    const h = Math.ceil($('wrap').getBoundingClientRect().height);
+    const page = document.body.classList.contains('show-more') ? $('page-more') : $('page-main');
+    const h = Math.ceil(page.getBoundingClientRect().height + 26);
     if (h && h !== lastHeight) { lastHeight = h; send({ type: 'resize', height: h }); }
   }
   new ResizeObserver(reportSize).observe($('wrap'));
 
   window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') send({ type: 'close' });
+    if (e.key === 'Escape') { if (document.body.classList.contains('show-more')) showMore(false); else send({ type: 'close' }); }
     else if (e.key === ' ') { e.preventDefault(); send({ type: 'media', action: 'playpause' }); }
   });
 

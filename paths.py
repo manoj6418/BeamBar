@@ -1,5 +1,12 @@
 # Standard Library
+import os
+import sys
 from pathlib import Path
+
+# Inside the BeamBar.app built by py2app, code lives in a zip and files sit in Resources.
+FROZEN = getattr(sys, 'frozen', None) == 'macosx_app'
+RESOURCES = Path(os.environ['RESOURCEPATH']) if FROZEN else Path(__file__).resolve().parent
+APP_BUNDLE = RESOURCES.parent.parent if FROZEN else None  # …/BeamBar.app
 
 _NEW = Path.home() / '.config' / 'beambar'
 _LEGACY = Path.home() / '.config' / 'xgimi-bar'

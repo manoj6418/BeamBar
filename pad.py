@@ -27,11 +27,13 @@ from AppKit import (
 from Foundation import NSMakeRect, NSObject, NSURL
 from WebKit import WKWebView, WKWebViewConfiguration
 
+from paths import RESOURCES
+
 WIDTH = 300
 HEIGHT = 632
 RADIUS = 28
 ESCAPE_KEYCODE = 53
-HTML = Path(__file__).with_name('pad.html')
+HTML = RESOURCES / 'pad.html'
 
 
 class PadPanel(NSPanel):

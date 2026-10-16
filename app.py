@@ -39,7 +39,7 @@ from voice import VoiceCapture
 
 import menu_views
 import net
-from paths import CERT_FILE, CONFIG_DIR, CONFIG_FILE, KEY_FILE, LOG_FILE, PHONE_HOSTNAME
+from paths import CERT_FILE, CONFIG_DIR, CONFIG_FILE, FROZEN, KEY_FILE, LOG_FILE, PHONE_HOSTNAME, RESOURCES
 
 CLIENT_NAME = 'BeamBar'
 
@@ -97,7 +97,36 @@ def save_config(config):
     CONFIG_FILE.write_text(json.dumps(config, indent=2))
 
 
+_asked_for_notifications = False
+
+
+def _notify_native(subtitle, message):
+    """macOS notifications from BeamBar itself; only possible inside the .app bundle."""
+    global _asked_for_notifications
+    try:
+        from UserNotifications import (
+            UNMutableNotificationContent,
+            UNNotificationRequest,
+            UNUserNotificationCenter,
+        )
+    except ImportError:
+        return False
+    center = UNUserNotificationCenter.currentNotificationCenter()
+    if not _asked_for_notifications:
+        center.requestAuthorizationWithOptions_completionHandler_(0b110, lambda granted, error: None)  # alert + sound
+        _asked_for_notifications = True
+    content = UNMutableNotificationContent.alloc().init()
+    content.setTitle_(subtitle)
+    content.setBody_(message)
+    request = UNNotificationRequest.requestWithIdentifier_content_trigger_(str(time.time()), content, None)
+    center.addNotificationRequest_withCompletionHandler_(request, None)
+    return True
+
+
 def notify(subtitle, message):
+    if FROZEN and _notify_native(subtitle, message):
+        return
+    # From source, AppleScript posts it (macOS credits these to Script Editor).
     script = 'display notification item 1 of argv with title "BeamBar" subtitle item 2 of argv'
     subprocess.Popen(['osascript', '-e', f'on run argv\n{script}\nend run', message, subtitle])
 
@@ -118,7 +147,7 @@ def youtube_id(text):
 class BeamBar(rumps.App):
     def __init__(self):
         # Menu bar: the BeamBar glyph as a template image, so macOS tints it for light and dark.
-        glyph = Path(__file__).resolve().parent / 'assets' / 'menubar.png'
+        glyph = RESOURCES / 'assets' / 'menubar.png'
         self.glyph = glyph.exists()
         if self.glyph:
             super().__init__('BeamBar', title=None, icon=str(glyph), template=True, quit_button=None)
@@ -126,7 +155,7 @@ class BeamBar(rumps.App):
             super().__init__('BeamBar', title=ICON, quit_button=None)
         # Dialogs (Add app, pairing code, alerts) show the app icon; without this it's Python's.
         from AppKit import NSImage
-        icon = NSImage.alloc().initWithContentsOfFile_(str(Path(__file__).resolve().parent / 'assets' / 'icon-512.png'))
+        icon = NSImage.alloc().initWithContentsOfFile_(str(RESOURCES / 'assets' / 'icon-512.png'))
         if icon is not None:
             NSApplication.sharedApplication().setApplicationIconImage_(icon)
         self.config = load_config()
@@ -857,7 +886,7 @@ end if
         if not accessibility_trusted(prompt=True):
             rumps.alert(
                 'Accessibility needed',
-                'Allow "Python" under System Settings → Privacy & Security → Accessibility, then turn hotkeys on again.',
+                f'Allow "{"BeamBar" if FROZEN else "Python"}" under System Settings → Privacy & Security → Accessibility, then turn hotkeys on again.',
             )
             return
         item.state = self.hotkeys.start()
@@ -1150,6 +1179,8 @@ end tell
             'commands': commands.suggestions(self.config),
             'devices': [n for n in self.config.get('devices', {}) if n != self.config['name']],
             'phone_url': self.phone.url() if self.config.get('phone_remote', True) else None,
+            'hotkeys': bool(self.hotkeys.active),
+            'login': login_item.is_installed(),
         }
 
     # ----- misc -----
@@ -1205,10 +1236,31 @@ end tell
         if kind == 'menu':
             AppHelper.callAfter(self.show_classic_menu)
             return
-        # These open a window or a prompt, so get the popover out of the way first.
-        if kind in ('showRemote', 'phoneQR', 'openLink', 'addApp', 'type', 'pair', 'findDevices'):
+        # These open a window, a prompt or a file picker, so get the popover out of the way first.
+        if kind in ('showRemote', 'phoneQR', 'openLink', 'addApp', 'type', 'pair', 'findDevices',
+                    'castFile', 'castUrl', 'sendTab', 'mirror', 'quit'):
             self.center.close()
-        if kind == 'showRemote':
+        if kind == 'castFile':
+            AppHelper.callAfter(self.cast_file, None)
+        elif kind == 'castUrl':
+            AppHelper.callAfter(self.cast_url, None)
+        elif kind == 'stopCast':
+            self.stop_casting(None)
+        elif kind == 'sendTab':
+            AppHelper.callAfter(self.send_tab)
+        elif kind == 'mirror':
+            AppHelper.callAfter(self.mirror)
+        elif kind == 'toggleHotkeys':
+            self.toggle_hotkeys(self.hotkey_item)
+            self.center.push_status(self.pad_status())
+        elif kind == 'toggleLogin':
+            self.toggle_login(self.login_item)
+            self.center.push_status(self.pad_status())
+        elif kind == 'quit':
+            rumps.quit_application()
+        elif kind == 'pair':
+            AppHelper.callAfter(self.pair, None)
+        elif kind == 'showRemote':
             self.show_pad(None)
         elif kind == 'phoneQR':
             self.phone_link(None)

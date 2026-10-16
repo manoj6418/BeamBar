@@ -17,8 +17,9 @@ from AppKit import (
 from WebKit import WKWebView, WKWebViewConfiguration
 
 from pad import Bridge
+from paths import RESOURCES
 
-HTML = Path(__file__).with_name('center.html')
+HTML = RESOURCES / 'center.html'
 WIDTH = 340
 
 
