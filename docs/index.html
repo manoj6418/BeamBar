@@ -138,8 +138,10 @@
     .code pre { margin: 0; padding: 14px 92px 14px 16px; font: 14px/1.7 ui-monospace, "SF Mono", Menlo, monospace; color: #cfd4ea; overflow-x: auto; }
     .copy { position: absolute; top: 9px; right: 9px; height: 30px; padding: 0 12px; border: 0; border-radius: 8px; background: var(--card-2); color: var(--text); font: 600 13px -apple-system, sans-serif; cursor: pointer; }
     .copy:hover { background: rgba(255, 255, 255, 0.14); }
-    .soon { margin-top: 28px; display: flex; gap: 14px; align-items: center; padding: 16px 18px; border-radius: 14px; background: var(--card); border: 1px dashed rgba(255, 255, 255, 0.16); color: var(--muted); font-size: 15px; max-width: 760px; }
-    .soon b { color: var(--text); }
+    .dl { margin-top: 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 14px; color: var(--faint); font-size: 14px; }
+    .step p a, .dl a:not(.btn) { color: var(--beam-1); text-decoration: none; }
+    details.source { margin-top: 30px; max-width: 760px; }
+    details.source .code { margin-bottom: 16px; }
     kbd { font: 600 13px ui-monospace, "SF Mono", monospace; padding: 2px 6px; border-radius: 6px; background: var(--card-2); border: 1px solid var(--line); }
 
     /* FAQ */
@@ -202,10 +204,10 @@
       <h1>Your TV remote,<br><span class="grad">in the menu bar.</span></h1>
       <p class="lead">BeamBar controls your TV or projector from your Mac and your phone, over Wi-Fi. Play, pause, change the volume, open Netflix, cast a video or type a search without finding the remote.</p>
       <div class="cta">
-        <a class="btn primary" href="#install">Install BeamBar</a>
+        <a class="btn primary" href="https://github.com/manoj6418/BeamBar/releases/download/v0.1.0/BeamBar-0.1.0.dmg"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Download for Mac</a>
         <a class="btn ghost" href="https://github.com/manoj6418/BeamBar">View the source</a>
       </div>
-      <p class="note">Free · Tested on macOS 15 · Unofficial, not affiliated with Google</p>
+      <p class="note">Free · Version 0.1.0 · Apple Silicon, macOS 13 or later · Unofficial, not affiliated with Google</p>
     </div>
     <div class="stagewrap" aria-hidden="true">
       <div class="menubar">
@@ -346,14 +348,16 @@
   <div class="wrap">
     <div class="eyebrow">Install</div>
     <h2>Up and running in two minutes.</h2>
-    <p class="sub">BeamBar runs from source for now. It's tested on macOS 15 and needs Python 3.10 or newer (<code>brew install python@3.12</code>).</p>
+    <p class="sub">For Macs with Apple Silicon (M1 or later) on macOS 13 or later. Tested on macOS 15.</p>
     <div class="steps">
       <div class="step"><div>
-        <h3>Download and install</h3>
-        <p>The script sets everything up, adds the <code>beambar</code> command and starts the app.</p>
-        <div class="code"><pre>git clone https://github.com/manoj6418/BeamBar.git
-cd BeamBar
-./install.sh</pre><button class="copy" data-copy="git clone https://github.com/manoj6418/BeamBar.git&#10;cd BeamBar&#10;./install.sh">Copy</button></div>
+        <h3>Download BeamBar</h3>
+        <p>Open <a href="https://github.com/manoj6418/BeamBar/releases/download/v0.1.0/BeamBar-0.1.0.dmg">BeamBar-0.1.0.dmg</a> and drag BeamBar to Applications.</p>
+        <div class="dl"><a class="btn primary" href="https://github.com/manoj6418/BeamBar/releases/download/v0.1.0/BeamBar-0.1.0.dmg">Download BeamBar 0.1.0</a><span>42 MB · <a href="https://github.com/manoj6418/BeamBar/releases/tag/v0.1.0">Release notes</a></span></div>
+      </div></div>
+      <div class="step"><div>
+        <h3>Open it the first time</h3>
+        <p>BeamBar isn't notarized yet, so macOS says it can't check it. Go to <b>System Settings → Privacy &amp; Security</b>, scroll down and click <b>Open Anyway</b>. Then allow BeamBar to find devices on your local network.</p>
       </div></div>
       <div class="step"><div>
         <h3>Turn on the TV</h3>
@@ -368,7 +372,13 @@ cd BeamBar
         <p>Turn them on in the control center's More page. For hotkeys, allow BeamBar under System Settings → Privacy &amp; Security → Accessibility.</p>
       </div></div>
     </div>
-    <div class="soon"><span>📦</span><span><b>A ready-to-run app is on the way.</b> Until then, the install script above is the way to get BeamBar.</span></div>
+    <details class="source">
+      <summary>Intel Mac, or prefer the source? Install from GitHub</summary>
+      <p>Needs Python 3.10 or newer (<code>brew install python@3.12</code>). The script sets everything up, adds the <code>beambar</code> command and starts the app.</p>
+      <div class="code"><pre>git clone https://github.com/manoj6418/BeamBar.git
+cd BeamBar
+./install.sh</pre><button class="copy" data-copy="git clone https://github.com/manoj6418/BeamBar.git&#10;cd BeamBar&#10;./install.sh">Copy</button></div>
+    </details>
   </div>
 </section>
 
@@ -398,8 +408,12 @@ cd BeamBar
         <p>No. BeamBar is an independent project and isn't affiliated with Google or XGIMI.</p>
       </details>
       <details>
-        <summary>Is there a download?</summary>
-        <p>Not yet. A packaged app is coming. For now, install from source with the three commands above.</p>
+        <summary>macOS says it can't check BeamBar. Is it safe?</summary>
+        <p>BeamBar isn't notarized by Apple yet, so macOS warns on first open. The source is on GitHub, and the release lists SHA-256 checksums for the downloads. To open it, use System Settings → Privacy &amp; Security → Open Anyway.</p>
+      </details>
+      <details>
+        <summary>Does it run on Intel Macs?</summary>
+        <p>The download is for Apple Silicon. On an Intel Mac, install from source with the three commands in the install section.</p>
       </details>
     </div>
   </div>

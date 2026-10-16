@@ -10,7 +10,9 @@ Unofficial; not affiliated with XGIMI or Google.
 
 ## Install
 
-Tested on macOS 15. Needs Python 3.10 or newer (`brew install python@3.12` if you don't have it).
+**Download:** get [BeamBar-0.1.0.dmg](https://github.com/manoj6418/BeamBar/releases/latest) and drag BeamBar to Applications. It's for Apple Silicon Macs on macOS 13 or later (tested on macOS 15). BeamBar isn't notarized yet, so the first time, open **System Settings → Privacy & Security** and click **Open Anyway**. Allow it to find devices on your local network when asked.
+
+**From source** (Intel Macs, or to hack on it): needs Python 3.10 or newer (`brew install python@3.12` if you don't have it).
 
 ```sh
 git clone https://github.com/manoj6418/BeamBar.git
@@ -18,7 +20,7 @@ cd BeamBar
 ./install.sh
 ```
 
-The script creates a virtual environment, installs the dependencies, puts the `beambar` command on your PATH and starts the app. Then:
+The script creates a virtual environment, installs the dependencies, puts the `beambar` command on your PATH and starts the app. Either way, then:
 
 1. Turn on the TV or projector and make sure it's on the same Wi-Fi as your Mac.
 2. Click the BeamBar icon (a small projector) in the menu bar. BeamBar finds the device by itself; if there are several, choose one under **Devices**.
