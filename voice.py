@@ -1,9 +1,6 @@
 # Standard Library
 import logging
 
-# Third Party Library
-import sounddevice as sd
-
 log = logging.getLogger('beambar.voice')
 
 SAMPLE_RATE = 8000
@@ -15,6 +12,9 @@ class VoiceCapture:
         self.stream = None
 
     def start(self, on_chunk):
+        # Loaded on first use, so a missing audio library never stops the app from starting.
+        import sounddevice as sd
+
         self.stop()
 
         def callback(indata, frames, time_info, status):

@@ -1,4 +1,4 @@
-"""Builds BeamBar.app with py2app: `.venv/bin/python setup.py py2app` (see make-dmg.sh)."""
+"""Builds BeamBar.app with py2app. Use ./make-dmg.sh to build the app and the release DMG."""
 # Third Party Library
 from setuptools import setup
 
@@ -18,9 +18,11 @@ setup(
             'includes': [
                 'app', 'automations', 'caster', 'center', 'cli', 'commands', 'control', 'controller', 'hotkeys',
                 'login_item', 'menu_views', 'net', 'pad', 'paths', 'phone', 'phone_qr', 'prompt', 'qr', 'search',
-                'voice', 'UserNotifications',
+                'voice', 'UserNotifications', 'sounddevice', '_cffi_backend',
+                'imp',  # py2app's extension loader stubs import it; the module graph misses it
             ],
-            'packages': ['androidtvremote2', 'pychromecast', 'zeroconf', 'aiohttp', 'certifi'],
+            # _sounddevice_data holds libportaudio.dylib; packages stay outside the zip so it can be loaded.
+            'packages': ['androidtvremote2', 'pychromecast', 'zeroconf', 'aiohttp', 'certifi', '_sounddevice_data'],
             'plist': {
                 'CFBundleName': 'BeamBar',
                 'CFBundleDisplayName': 'BeamBar',

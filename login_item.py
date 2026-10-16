@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 # Third Party Library
-from paths import APP_BUNDLE, FROZEN
+from paths import APP_BUNDLE, FROZEN, RESOURCES
 from paths import LOG_FILE as LOG
 
 LABEL = 'dev.beambar.app'
@@ -38,7 +38,7 @@ def install():
         'Label': LABEL,
         'ProgramArguments': ([str(APP_BUNDLE / 'Contents' / 'MacOS' / 'BeamBar')] if FROZEN
                              else [sys.executable, str(APP_DIR / 'app.py')]),
-        'WorkingDirectory': str(APP_DIR),
+        'WorkingDirectory': str(RESOURCES if FROZEN else APP_DIR),
         'RunAtLoad': True,
         'KeepAlive': {'SuccessfulExit': False},
         'ProcessType': 'Interactive',
