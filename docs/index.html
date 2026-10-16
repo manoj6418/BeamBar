@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BeamBar — your TV remote in the Mac menu bar</title>
+  <meta name="description" content="A free macOS menu bar remote for Google TV and Android TV: control center, floating remote, phone remote, hotkeys, casting and scenes, all over your Wi-Fi.">
+  <meta name="theme-color" content="#0b0d18">
+  <link rel="icon" type="image/png" href="img/favicon.png">
+  <link rel="apple-touch-icon" href="img/icon.png">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="BeamBar">
+  <meta property="og:description" content="Your Google TV and Android TV remote, in the Mac menu bar and on your phone.">
+  <meta property="og:image" content="https://manoj6418.github.io/BeamBar/img/social-preview.png">
+  <meta property="og:url" content="https://manoj6418.github.io/BeamBar/">
+  <meta name="twitter:card" content="summary_large_image">
+  <style>
+    :root {
+      --bg: #0b0d18;
+      --bg-2: #11142a;
+      --card: rgba(255, 255, 255, 0.045);
+      --card-2: rgba(255, 255, 255, 0.08);
+      --line: rgba(255, 255, 255, 0.09);
+      --text: #f2f4fb;
+      --muted: #9ea4bf;
+      --faint: #6c7290;
+      --beam-1: #5ee7ff;
+      --beam-2: #8b7cff;
+      --beam: linear-gradient(135deg, var(--beam-1), var(--beam-2));
+      --radius: 20px;
+      --max: 1120px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 17px/1.6 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Inter, Roboto, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+    a { color: inherit; }
+    img { max-width: 100%; display: block; }
+    .wrap { max-width: var(--max); margin: 0 auto; padding: 0 24px; }
+    .grad { background: var(--beam); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+    /* Nav */
+    nav { position: sticky; top: 0; z-index: 10; backdrop-filter: saturate(160%) blur(18px); -webkit-backdrop-filter: saturate(160%) blur(18px); background: rgba(11, 13, 24, 0.72); border-bottom: 1px solid var(--line); }
+    nav .wrap { display: flex; align-items: center; gap: 28px; height: 60px; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; text-decoration: none; letter-spacing: -0.01em; }
+    .brand img { width: 28px; height: 28px; border-radius: 7px; }
+    nav .links { display: flex; gap: 22px; margin-left: auto; font-size: 15px; }
+    nav .links a { text-decoration: none; color: var(--muted); transition: color 0.15s; }
+    nav .links a:hover { color: var(--text); }
+    .btn { display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 20px; border-radius: 12px; font-weight: 600; font-size: 15px; text-decoration: none; transition: transform 0.2s, filter 0.2s, background 0.2s; }
+    .btn:hover { transform: translateY(-1px); }
+    .btn.primary { background: var(--beam); color: #0b1020; box-shadow: 0 8px 28px rgba(139, 124, 255, 0.35); }
+    .btn.primary:hover { filter: brightness(1.08); }
+    .btn.ghost { background: var(--card-2); border: 1px solid var(--line); }
+    .btn.ghost:hover { background: rgba(255, 255, 255, 0.12); }
+    .btn svg { width: 18px; height: 18px; }
+    nav .btn { height: 36px; padding: 0 14px; font-size: 14px; }
+
+    /* Hero */
+    .hero { position: relative; padding: 84px 0 40px; overflow-x: clip; }
+    .hero::before { content: ""; position: absolute; inset: -200px -10% auto; height: 820px; background: radial-gradient(closest-side, rgba(94, 231, 255, 0.16), transparent 70%) 18% 30% / 60% 80% no-repeat, radial-gradient(closest-side, rgba(139, 124, 255, 0.2), transparent 70%) 80% 40% / 60% 90% no-repeat; pointer-events: none; }
+    .hero .wrap { position: relative; display: grid; grid-template-columns: 1.05fr 1fr; gap: 56px; align-items: center; }
+    .pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px 6px 8px; border-radius: 999px; background: var(--card); border: 1px solid var(--line); font-size: 13.5px; color: var(--muted); }
+    .pill .dot { width: 8px; height: 8px; border-radius: 50%; background: #30d158; box-shadow: 0 0 0 3px rgba(48, 209, 88, 0.2); }
+    h1 { font-size: clamp(40px, 6vw, 64px); line-height: 1.04; letter-spacing: -0.035em; margin: 20px 0 18px; }
+    .lead { font-size: 19px; color: var(--muted); max-width: 33em; margin: 0 0 30px; }
+    .cta { display: flex; flex-wrap: wrap; gap: 12px; }
+    .note { margin-top: 16px; font-size: 14px; color: var(--faint); }
+
+    .stagewrap { position: relative; }
+    .menubar { height: 30px; border-radius: 10px; background: rgba(255, 255, 255, 0.07); border: 1px solid var(--line); display: flex; align-items: center; justify-content: flex-end; gap: 16px; padding: 0 14px; font-size: 13px; color: var(--muted); }
+    .menubar .me { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 6px; background: rgba(255, 255, 255, 0.14); color: var(--text); font-weight: 600; }
+    .menubar .me svg { width: 16px; height: 16px; }
+    .stage { position: relative; height: 640px; margin-top: 10px; }
+    .stage .shot { position: absolute; filter: drop-shadow(0 30px 60px rgba(0, 0, 0, 0.55)); }
+    .stage .center { width: 300px; right: 34px; top: 0; z-index: 2; }
+    .stage .remote { width: 220px; height: 540px; object-fit: cover; object-position: top; left: 0; top: 70px; z-index: 1; -webkit-mask-image: linear-gradient(180deg, #000 72%, transparent); mask-image: linear-gradient(180deg, #000 72%, transparent); }
+    .stage .beam { position: absolute; right: 120px; top: -12px; width: 140px; height: 120px; background: linear-gradient(180deg, rgba(94, 231, 255, 0.35), transparent); clip-path: polygon(42% 0, 58% 0, 100% 100%, 0 100%); filter: blur(10px); z-index: 1; pointer-events: none; }
+
+    section { padding: 96px 0; }
+    section.alt { background: linear-gradient(180deg, var(--bg-2), var(--bg)); border-top: 1px solid var(--line); }
+    .eyebrow { font-size: 13px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--beam-1); }
+    h2 { font-size: clamp(30px, 4vw, 44px); line-height: 1.1; letter-spacing: -0.03em; margin: 10px 0 14px; }
+    .sub { color: var(--muted); font-size: 18px; max-width: 36em; margin: 0; }
+
+    /* Features */
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 48px; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 26px; transition: transform 0.25s, background 0.25s; }
+    .card:hover { transform: translateY(-3px); background: var(--card-2); }
+    .card .ic { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; background: linear-gradient(135deg, rgba(94, 231, 255, 0.18), rgba(139, 124, 255, 0.22)); color: var(--beam-1); margin-bottom: 16px; }
+    .card .ic svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .card h3 { margin: 0 0 6px; font-size: 18px; letter-spacing: -0.01em; }
+    .card p { margin: 0; color: var(--muted); font-size: 15.5px; }
+
+    /* Split sections */
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; }
+    .split.rev .text { order: 2; }
+    .ticks { list-style: none; padding: 0; margin: 26px 0 0; display: grid; gap: 12px; }
+    .ticks li { display: flex; gap: 12px; color: var(--muted); font-size: 16px; }
+    .ticks li::before { content: ""; flex: 0 0 auto; width: 20px; height: 20px; margin-top: 3px; border-radius: 50%; background: var(--beam); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-1.2 14.2-4-4 1.4-1.4 2.6 2.6 5.6-5.6 1.4 1.4z'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-1.2 14.2-4-4 1.4-1.4 2.6 2.6 5.6-5.6 1.4 1.4z'/%3E%3C/svg%3E") center / contain no-repeat; }
+    .ticks b { color: var(--text); font-weight: 600; }
+
+    .phones { position: relative; display: flex; justify-content: center; align-items: flex-end; gap: 26px; }
+    .device { width: 260px; padding: 10px; border-radius: 46px; background: #05060c; border: 1px solid rgba(255, 255, 255, 0.14); box-shadow: 0 40px 80px rgba(0, 0, 0, 0.55), inset 0 0 0 2px #1b1e2e; }
+    .device .screen { border-radius: 37px; overflow: hidden; aspect-ratio: 390 / 844; position: relative; }
+    .device .screen { background: #0b0d18; }
+    .device .screen img { width: 100%; height: auto; margin-top: 26px; }
+    .device .island { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: 82px; height: 24px; border-radius: 14px; background: #000; z-index: 2; }
+    .phones .qr { width: 210px; margin-bottom: 40px; filter: drop-shadow(0 26px 50px rgba(0, 0, 0, 0.5)); }
+
+    .shots2 { position: relative; max-width: 520px; min-height: 560px; }
+    .shots2 img { filter: drop-shadow(0 26px 50px rgba(0, 0, 0, 0.5)); }
+    .shots2 .more { width: 280px; }
+    .shots2 .prompt { position: absolute; width: 320px; right: 0; top: 250px; }
+
+    /* CLI */
+    .term { background: #070810; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; box-shadow: 0 30px 60px rgba(0, 0, 0, 0.45); }
+    .term .bar { display: flex; gap: 7px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+    .term .bar i { width: 11px; height: 11px; border-radius: 50%; background: #2a2d3d; }
+    .term pre { margin: 0; padding: 20px 22px; font: 14.5px/1.75 ui-monospace, "SF Mono", Menlo, monospace; color: #cfd4ea; overflow-x: auto; }
+    .term .p { color: var(--beam-1); }
+    .term .c { color: var(--faint); }
+
+    /* Install */
+    .steps { counter-reset: step; display: grid; gap: 18px; margin-top: 40px; max-width: 760px; }
+    .step { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 16px; align-items: start; }
+    .step > div { min-width: 0; }
+    .step::before { counter-increment: step; content: counter(step); width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center; font-weight: 700; color: #0b1020; background: var(--beam); }
+    .step h3 { margin: 4px 0 6px; font-size: 18px; }
+    .step p { margin: 0; color: var(--muted); font-size: 15.5px; }
+    .code { position: relative; margin-top: 10px; background: #070810; border: 1px solid var(--line); border-radius: 12px; }
+    .code pre { margin: 0; padding: 14px 92px 14px 16px; font: 14px/1.7 ui-monospace, "SF Mono", Menlo, monospace; color: #cfd4ea; overflow-x: auto; }
+    .copy { position: absolute; top: 9px; right: 9px; height: 30px; padding: 0 12px; border: 0; border-radius: 8px; background: var(--card-2); color: var(--text); font: 600 13px -apple-system, sans-serif; cursor: pointer; }
+    .copy:hover { background: rgba(255, 255, 255, 0.14); }
+    .soon { margin-top: 28px; display: flex; gap: 14px; align-items: center; padding: 16px 18px; border-radius: 14px; background: var(--card); border: 1px dashed rgba(255, 255, 255, 0.16); color: var(--muted); font-size: 15px; max-width: 760px; }
+    .soon b { color: var(--text); }
+    kbd { font: 600 13px ui-monospace, "SF Mono", monospace; padding: 2px 6px; border-radius: 6px; background: var(--card-2); border: 1px solid var(--line); }
+
+    /* FAQ */
+    .faq { margin-top: 36px; display: grid; gap: 12px; max-width: 820px; }
+    details { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 4px 20px; }
+    summary { cursor: pointer; padding: 14px 0; font-weight: 600; list-style: none; display: flex; justify-content: space-between; gap: 16px; }
+    summary::-webkit-details-marker { display: none; }
+    summary::after { content: "+"; color: var(--faint); font-size: 22px; line-height: 1; transition: transform 0.2s; }
+    details[open] summary::after { transform: rotate(45deg); }
+    details p { margin: 0 0 16px; color: var(--muted); font-size: 15.5px; }
+
+    footer { border-top: 1px solid var(--line); padding: 36px 0 48px; color: var(--faint); font-size: 14px; }
+    footer .wrap { display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; align-items: center; }
+    footer a { color: var(--muted); }
+
+    @media (max-width: 920px) {
+      .hero .wrap, .split { grid-template-columns: 1fr; gap: 40px; }
+      .split.rev .text { order: 0; }
+      .grid { grid-template-columns: 1fr 1fr; }
+      .stage { height: 560px; max-width: 520px; margin-left: auto; margin-right: auto; }
+      nav .links { display: none; }
+      nav .btn { margin-left: auto; }
+    }
+    @media (max-width: 600px) {
+      .grid { grid-template-columns: 1fr; }
+      .stage { height: 520px; }
+      .stage .center { width: 250px; right: 0; }
+      .stage .remote { width: 170px; height: 420px; }
+      .menubar .hide-sm { display: none; }
+      .phones .qr { display: none; }
+      .shots2 { min-height: 0; display: flex; flex-direction: column; align-items: center; gap: 18px; }
+      .shots2 .prompt { position: static; width: 100%; max-width: 330px; }
+      .shots2 .more { width: 100%; max-width: 280px; }
+      section { padding: 72px 0; }
+      .hero { padding-top: 56px; }
+    }
+    @media (prefers-reduced-motion: reduce) { * { transition: none !important; } html { scroll-behavior: auto; } }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="#"><img src="img/icon.png" alt="">BeamBar</a>
+    <div class="links">
+      <a href="#features">Features</a>
+      <a href="#phone">Phone remote</a>
+      <a href="#cli">Command line</a>
+      <a href="#install">Install</a>
+      <a href="#faq">FAQ</a>
+    </div>
+    <a class="btn ghost" href="https://github.com/manoj6418/BeamBar"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.69 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5z"/></svg>GitHub</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div>
+      <span class="pill"><span class="dot"></span>For Google TV and Android TV</span>
+      <h1>Your TV remote,<br><span class="grad">in the menu bar.</span></h1>
+      <p class="lead">BeamBar controls your TV or projector from your Mac and your phone, over Wi-Fi. Play, pause, change the volume, open Netflix, cast a video or type a search without finding the remote.</p>
+      <div class="cta">
+        <a class="btn primary" href="#install">Install BeamBar</a>
+        <a class="btn ghost" href="https://github.com/manoj6418/BeamBar">View the source</a>
+      </div>
+      <p class="note">Free · Tested on macOS 15 · Unofficial, not affiliated with Google</p>
+    </div>
+    <div class="stagewrap" aria-hidden="true">
+      <div class="menubar">
+        <span class="hide-sm">Wi-Fi</span><span class="hide-sm">100%</span>
+        <span class="me"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="9" width="7" height="6" rx="1.5"/><path d="M9 11l11-5v12L9 13"/></svg>35</span>
+        <span>Thu 9:41 PM</span>
+      </div>
+      <div class="stage">
+        <div class="beam"></div>
+        <img class="shot remote" src="img/remote.png" alt="">
+        <img class="shot center" src="img/center.png" alt="">
+      </div>
+    </div>
+  </div>
+</header>
+
+<section id="features" class="alt">
+  <div class="wrap">
+    <div class="eyebrow">Features</div>
+    <h2>Everything the remote does,<br>and a lot it can't.</h2>
+    <p class="sub">Click the icon for the control center. Right-click it for the full menu. Or never touch the mouse at all.</p>
+    <div class="grid">
+      <div class="card">
+        <div class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 9h18"/><circle cx="8" cy="14.5" r="1.5"/><path d="M12 14.5h5"/></svg></div>
+        <h3>Control center</h3>
+        <p>What's playing with a progress bar, volume, your apps with one click, scenes and quick actions, right under the menu bar icon.</p>
+      </div>
+      <div class="card">
+        <div class="ic"><svg viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="4"/><circle cx="12" cy="9" r="2.5"/><path d="M10 15h.01M14 15h.01M10 18h.01M14 18h.01"/></svg></div>
+        <h3>Floating remote</h3>
+        <p>A glass remote that floats over your work. Swipe to move, click for OK, drag to scrub. Collapses to a small bar when you don't need it.</p>
+      </div>
+      <div class="card">
+        <div class="ic"><svg viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="3"/><path d="M11 18h2"/></svg></div>
+        <h3>Phone remote</h3>
+        <p>Scan a QR code and your phone becomes the remote. No app to install. Add it to the Home Screen and it feels like one.</p>
+      </div>
+      <div class="card">
+        <div class="ic"><svg viewBox="0 0 24 24"><path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3"/></svg></div>
+        <h3>Global hotkeys</h3>
+        <p>Play, pause, volume and the remote from any app with <kbd>⌃⌥</kbd> shortcuts.</p>
+      </div>
+      <div class="card">
+        <div class="ic"><svg viewBox="0 0 24 24"><path d="M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6"/><path d="M2 12a9 9 0 0 1 8 8M2 16a5 5 0 0 1 4 4M2 20h.01"/></svg></div>
+        <h3>Cast from your Mac</h3>
+        <p>Send a video file, a link or your current browser tab to the TV. YouTube and Netflix links open straight in their apps.</p>
+      </div>
+      <div class="card">
+        <div class="ic"><svg viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg></div>
+        <h3>Scenes and sleep timer</h3>
+        <p>"Movie night" sets the volume and opens Netflix in one step. Fall asleep to a show and the TV turns itself off.</p>
+      </div>
+      <div class="card">
+        <div class="ic"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></div>
+        <h3>Voice and typing</h3>
+        <p>Hold <kbd>V</kbd> to search with your voice through the Mac's microphone. Press <kbd>T</kbd> and type on the TV with a real keyboard.</p>
+      </div>
+      <div class="card">
+        <div class="ic"><svg viewBox="0 0 24 24"><path d="M4 17l6-6-6-6M12 19h8"/></svg></div>
+        <h3>Command line</h3>
+        <p>A <code>beambar</code> command for Shortcuts, Siri, Raycast and Stream Deck. Anything that runs a shell command can drive the TV.</p>
+      </div>
+      <div class="card">
+        <div class="ic"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="13" rx="2"/><path d="M17 2l-5 5-5-5"/></svg></div>
+        <h3>More than one TV</h3>
+        <p>Finds the TVs on your network by itself. Switch between the living room and the bedroom from the device menu.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="phone">
+  <div class="wrap split">
+    <div class="text">
+      <div class="eyebrow">Phone remote</div>
+      <h2>Your phone is already<br>the remote.</h2>
+      <p class="sub">Open the QR code from the control center and point your camera at it. The remote opens in the browser, with nothing to install.</p>
+      <ul class="ticks">
+        <li><span><b>Same remote everywhere.</b> The phone gets the touch pad, media controls, apps and scenes, just like the Mac.</span></li>
+        <li><span><b>Type with the phone keyboard</b> instead of picking letters one by one on the TV.</span></li>
+        <li><span><b>Live in both places.</b> The QR window says "Phone connected" the moment your phone joins.</span></li>
+        <li><span><b>Stays on your Wi-Fi.</b> The phone talks to your Mac, and your Mac talks to the TV. Nothing goes through the internet.</span></li>
+      </ul>
+    </div>
+    <div class="phones">
+      <img class="qr" src="img/qr.png" alt="The phone remote QR code window">
+      <div class="device"><div class="screen"><div class="island"></div><img src="img/phone.png" alt="BeamBar phone remote on an iPhone"></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="alt">
+  <div class="wrap split rev">
+    <div class="text">
+      <div class="eyebrow">Made for the Mac</div>
+      <h2>Small things,<br>done right.</h2>
+      <p class="sub">BeamBar is built with the Mac's own windows, menus and notifications.</p>
+      <ul class="ticks">
+        <li><span><b>Copied a link?</b> BeamBar offers to paste it when you open "Cast a link" or "Open on TV".</span></li>
+        <li><span><b>Mistakes are caught early.</b> A broken link or a wrong pairing code is pointed out before anything is sent.</span></li>
+        <li><span><b>Everything in one place.</b> The More page has casting, screen mirroring, hotkeys, start at login and pairing.</span></li>
+        <li><span><b>Quiet by default.</b> It sits in the menu bar with the volume next to the icon, and stays out of the Dock.</span></li>
+      </ul>
+    </div>
+    <div class="shots2">
+      <img class="more" src="img/center-more.png" alt="The More page of the BeamBar control center">
+      <img class="prompt" src="img/prompt.png" alt="The Cast a link window">
+    </div>
+  </div>
+</section>
+
+<section id="cli">
+  <div class="wrap split">
+    <div class="text">
+      <div class="eyebrow">Command line</div>
+      <h2>Script your living room.</h2>
+      <p class="sub">The <code>beambar</code> command talks to the running app, so Shortcuts, Siri, Raycast and Stream Deck can all control the TV.</p>
+      <ul class="ticks">
+        <li><span><b>"Hey Siri, movie night":</b> a Shortcut with one shell step runs your scene.</span></li>
+        <li><span><b>Status as JSON</b> for your own scripts and dashboards.</span></li>
+      </ul>
+    </div>
+    <div class="term">
+      <div class="bar"><i></i><i></i><i></i></div>
+<pre><span class="p">$</span> beambar volume 40
+<span class="p">$</span> beambar app Netflix
+<span class="p">$</span> beambar open stranger things   <span class="c"># YouTube search</span>
+<span class="p">$</span> beambar cast ~/Movies/trip.mp4
+<span class="p">$</span> beambar scene "Movie night"
+<span class="p">$</span> beambar sleep 30               <span class="c"># off in 30 minutes</span>
+<span class="p">$</span> beambar find                   <span class="c"># look for TVs</span>
+<span class="p">$</span> beambar status</pre>
+    </div>
+  </div>
+</section>
+
+<section id="install" class="alt">
+  <div class="wrap">
+    <div class="eyebrow">Install</div>
+    <h2>Up and running in two minutes.</h2>
+    <p class="sub">BeamBar runs from source for now. It's tested on macOS 15 and needs Python 3.10 or newer (<code>brew install python@3.12</code>).</p>
+    <div class="steps">
+      <div class="step"><div>
+        <h3>Download and install</h3>
+        <p>The script sets everything up, adds the <code>beambar</code> command and starts the app.</p>
+        <div class="code"><pre>git clone https://github.com/manoj6418/BeamBar.git
+cd BeamBar
+./install.sh</pre><button class="copy" data-copy="git clone https://github.com/manoj6418/BeamBar.git&#10;cd BeamBar&#10;./install.sh">Copy</button></div>
+      </div></div>
+      <div class="step"><div>
+        <h3>Turn on the TV</h3>
+        <p>Make sure it's on the same Wi-Fi as your Mac. BeamBar finds it by itself. If you have more than one, pick it under Devices.</p>
+      </div></div>
+      <div class="step"><div>
+        <h3>Pair once</h3>
+        <p>Choose <b>Pair with TV…</b> and type the code the TV shows. You only do this once per TV.</p>
+      </div></div>
+      <div class="step"><div>
+        <h3>Optional: hotkeys and start at login</h3>
+        <p>Turn them on in the control center's More page. For hotkeys, allow BeamBar under System Settings → Privacy &amp; Security → Accessibility.</p>
+      </div></div>
+    </div>
+    <div class="soon"><span>📦</span><span><b>A ready-to-run app is on the way.</b> Until then, the install script above is the way to get BeamBar.</span></div>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <div class="eyebrow">FAQ</div>
+    <h2>Questions</h2>
+    <div class="faq">
+      <details>
+        <summary>Which TVs and projectors work?</summary>
+        <p>Devices running Google TV or Android TV that support Google's remote control service, the same one the Google TV phone app uses. It's built and tested with an XGIMI projector. Other Google TV and Android TV devices should work too, but haven't been tested yet.</p>
+      </details>
+      <details>
+        <summary>Does it need the internet?</summary>
+        <p>No. BeamBar talks to the TV directly over your Wi-Fi. The phone remote is served by your Mac on the same network. Nothing is sent to a server.</p>
+      </details>
+      <details>
+        <summary>Can it turn the TV on?</summary>
+        <p>From standby, yes. From fully off, no: that needs the physical remote's Bluetooth wake signal, which a Mac can't send.</p>
+      </details>
+      <details>
+        <summary>My phone can't open the link. What now?</summary>
+        <p>Some phones can't open <code>.local</code> names. Switch the QR window to <b>IP link</b> and scan again. Your phone must be on the same Wi-Fi as your Mac.</p>
+      </details>
+      <details>
+        <summary>Is this an official Google or XGIMI app?</summary>
+        <p>No. BeamBar is an independent project and isn't affiliated with Google or XGIMI.</p>
+      </details>
+      <details>
+        <summary>Is there a download?</summary>
+        <p>Not yet. A packaged app is coming. For now, install from source with the three commands above.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>BeamBar · Unofficial, not affiliated with Google or XGIMI.</span>
+    <span><a href="https://github.com/manoj6418/BeamBar">GitHub</a> · <a href="https://github.com/manoj6418/BeamBar/issues">Report an issue</a></span>
+  </div>
+</footer>
+
+<script>
+  document.querySelectorAll('.copy').forEach((button) => {
+    button.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(button.dataset.copy);
+        button.textContent = 'Copied';
+      } catch {
+        button.textContent = 'Select & copy';
+      }
+      setTimeout(() => { button.textContent = 'Copy'; }, 1600);
+    });
+  });
+</script>
+</body>
+</html>
