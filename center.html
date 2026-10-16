@@ -163,6 +163,11 @@
   .row svg { width: 17px; height: 17px; color: var(--ink-2); flex: 0 0 auto; }
   .row .grow { flex: 1; }
   .row .hint { font-size: 11px; color: var(--ink-3); }
+  .row .note { display: block; font-size: 11px; color: var(--ink-2); margin-top: 2px; }
+  .row.busy { pointer-events: none; }
+  .spinner { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--card-2); border-top-color: var(--beam-1); animation: spin 0.8s linear infinite; flex: 0 0 auto; }
+  .spinner[hidden], .note[hidden] { display: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
   .row.quit { color: #ff453a; justify-content: center; font-weight: 500; }
   .switch { width: 34px; height: 20px; border-radius: 10px; background: var(--card-2); position: relative; flex: 0 0 auto; transition: background 0.2s; }
   .switch::after { content: ""; position: absolute; left: 2px; top: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); transition: transform 0.25s var(--spring); }
@@ -257,7 +262,7 @@
   <div class="label">Connection</div>
   <div class="group">
     <div class="row" data-do="pair"><svg viewBox="0 0 24 24"><path d="M9 17H7A5 5 0 0 1 7 7h2M15 7h2a5 5 0 0 1 0 10h-2M8 12h8"/></svg><span class="grow">Pair with TV…</span></div>
-    <div class="row" data-do="findDevices"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span class="grow">Find devices on the network</span></div>
+    <div class="row" data-do="findDevices"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><span class="grow">Find devices on the network<span class="note" id="search-note" hidden></span></span><span class="spinner" id="search-spin" hidden></span></div>
     <div class="row" data-do="reconnect"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg><span class="grow">Reconnect</span></div>
   </div>
 
@@ -359,7 +364,11 @@
       if (s.volume != null) bits.push(s.muted ? 'Muted' : 'Volume ' + s.volume);
       if (s.sleep_in != null) bits.push('Sleep in ' + s.sleep_in + ' min');
     }
-    $('sub').textContent = connected ? (bits.join(' · ') || 'Connected') : ({ unpaired: 'Not paired yet', offline: 'Offline', connecting: 'Connecting…' }[s.state] || s.state);
+    $('search-spin').hidden = !s.searching;
+    $('search-note').hidden = !s.search_note || s.searching;
+    $('search-note').textContent = s.search_note || '';
+    document.querySelector('[data-do="findDevices"]').classList.toggle('busy', !!s.searching);
+    $('sub').textContent = s.searching ? 'Searching for TVs…' : connected ? (bits.join(' · ') || 'Connected') : ({ unpaired: 'Not paired yet', offline: 'Offline', connecting: 'Connecting…' }[s.state] || s.state);
 
     const banner = $('banner');
     banner.classList.toggle('show', s.state === 'unpaired' || s.state === 'offline');

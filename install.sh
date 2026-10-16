@@ -23,4 +23,4 @@ echo "Installed the beambar command in $BIN"
 case ":$PATH:" in *":$BIN:"*) ;; *) echo "Add $BIN to your PATH to use it from any terminal." ;; esac
 
 ./run.sh
-echo "BeamBar is running: look for the projector icon in the menu bar, then choose Pair with projector…"
+echo "BeamBar is running: look for the BeamBar icon in the menu bar, then choose Pair with TV…"

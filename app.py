@@ -71,6 +71,7 @@ DEFAULT_CONFIG = {
 ACCESSORY_POLICY = 1
 RETRY_SECONDS = 30
 ICON = '📽'
+APP_NAME = 'BeamBar' if FROZEN else 'Python'  # the name macOS shows in privacy settings
 YOUTUBE_ID = re.compile(r'^[A-Za-z0-9_-]{11}$')
 KEY_FOR_CHAR = {
     **{str(d): f'KEYCODE_{d}' for d in range(10)},
@@ -171,6 +172,8 @@ class BeamBar(rumps.App):
         self.media_server = caster.MediaServer()
         self.media_poll = 0
         self.center = None  # control center popover, set up once the status item exists
+        self.searching = False  # a device search is running
+        self.search_note = None  # result of the last device search, shown in the control center
 
         self.loop = asyncio.new_event_loop()
         threading.Thread(target=self.loop.run_forever, daemon=True).start()
@@ -250,6 +253,7 @@ class BeamBar(rumps.App):
 
         net.device_host = self.config['host']
         self.remote = AndroidTVRemote(CLIENT_NAME, str(CERT_FILE), str(KEY_FILE), self.config['host'], loop=self.loop)
+        self.remote.add_current_app_updated_callback(lambda package: log.info('TV app: %s', package))
         threading.Thread(target=self.discover_and_connect, daemon=True).start()
         rumps.Timer(self.refresh, 1).start()
         if self.config.get('pad_open'):
@@ -369,21 +373,39 @@ class BeamBar(rumps.App):
             if name != current:
                 self.device_menu.add(rumps.MenuItem(name, callback=lambda _, n=name: self.switch_device(n)))
         self.device_menu.add(None)
-        self.device_menu.add(rumps.MenuItem('Find devices on the network…', callback=self.find_devices))
+        title = 'Searching for TVs…' if self.searching else 'Find devices on the network…'
+        self.device_menu.add(rumps.MenuItem(title, callback=None if self.searching else self.find_devices))
 
     def find_devices(self, _):
-        found = self.scan_devices()
-        if not found:
-            rumps.alert('Devices', 'No Android TV / Google TV devices answered on this network.')
+        """Searches in the background so the menu bar stays responsive; devices_found gets the result."""
+        if self.searching:
             return
-        devices = self.config.setdefault('devices', {})
-        if self.config['name']:
-            devices.setdefault(self.config['name'], {'host': self.config['host']})
-        for name, host in found.items():
-            devices[name] = {'host': host}
-        save_config(self.config)
+        self.searching = True
+        self.search_note = None
         self.build_device_menu()
-        notify('Devices', 'Found: ' + ', '.join(found))
+        self.push_center()
+        threading.Thread(target=lambda: AppHelper.callAfter(self.devices_found, self.scan_devices()), daemon=True).start()
+
+    def devices_found(self, found):
+        self.searching = False
+        if found:
+            devices = self.config.setdefault('devices', {})
+            if self.config['name']:
+                devices.setdefault(self.config['name'], {'host': self.config['host']})
+            for name, host in found.items():
+                devices[name] = {'host': host}
+            save_config(self.config)
+            self.search_note = 'Found ' + ', '.join(found)
+        else:
+            self.search_note = 'No TVs found. Is it on and on this Wi-Fi?'
+        self.build_device_menu()
+        self.push_center()
+        if self.center is None or not self.center.is_shown():
+            notify('Devices', self.search_note)
+
+    def push_center(self):
+        if self.center is not None and self.center.is_shown():
+            self.center.push_status(self.pad_status())
 
     @staticmethod
     def scan_devices(seconds=4):
@@ -414,7 +436,7 @@ class BeamBar(rumps.App):
         """No device configured yet: pick the only one on the network, or ask."""
         found = self.scan_devices(seconds=6)
         if not found:
-            notify('No TV or projector found', 'Turn it on, join the same Wi-Fi, then use Devices → Find devices…')
+            notify('No TV found', 'Turn it on, join the same Wi-Fi, then use Devices → Find devices…')
             return False
         self.config.setdefault('devices', {}).update({name: {'host': host} for name, host in found.items()})
         if len(found) > 1:
@@ -439,8 +461,11 @@ class BeamBar(rumps.App):
         """
         from phone_qr import BeamBarPhoneQR
 
+        if getattr(self, 'phone_qr', None) is not None:
+            self.phone_qr.close()
         stable = f'http://{PHONE_HOSTNAME}.local:{self.phone.port}'
         self.phone_qr = BeamBarPhoneQR.alloc().initWithStable_byIP_(stable, self.phone.url())
+        self.phone_qr.phones = lambda: len(self.phone.clients)
         self.phone_qr.show()
 
     def send_tab(self):
@@ -457,9 +482,9 @@ end if
         log.info('send tab: url=%r stderr=%r', url, result.stderr.strip()[:200])
         if not url.startswith('http'):
             if 'not allowed' in result.stderr or '-1743' in result.stderr:
-                notify('Send tab', 'macOS blocked access to the browser. Allow "Python" under System Settings → Privacy → Automation.')
+                notify('Send tab', f'macOS blocked access to the browser. Allow "{APP_NAME}" under System Settings → Privacy → Automation.')
             else:
-                notify('Send tab', 'No browser tab found in Chrome, Brave, Edge or Safari.')
+                notify('Send tab', 'No browser tab found. Bring a Chrome or Safari window to the front first.')
             return
         host = urlparse(url).netloc.lower()
         playable = youtube_id(url) or any(k in host for k in ('netflix.com', 'primevideo.com', 'hotstar.com', 'jiocinema', 'youtube.com'))
@@ -470,7 +495,7 @@ end if
         elif direct_media:
             self.cast_media(url, None, url.rsplit('/', 1)[-1])
         else:
-            notify('Send tab', 'The projector has no web browser for this page. In Chrome use ⋮ → Cast… → "Cast tab" instead.')
+            notify('Send tab', 'The TV has no web browser for this page. In Chrome use ⋮ → Cast… → "Cast tab" instead.')
 
     def run_command(self, text):
         action = commands.parse(text)
@@ -490,8 +515,14 @@ end if
             threading.Thread(target=lambda: self.phone.toast(self.finish_pairing(msg.get('code', '')) or 'Paired ✓'),
                              daemon=True).start()
             return
-        if kind == 'command' and commands.parse(msg.get('text', '')) in ({'type': 'phone'},):
-            return
+        if kind == 'command':
+            action = commands.parse(msg.get('text', '')) or {}
+            if action.get('type') == 'phone':
+                return
+            # Anyone on the Wi-Fi can reach the phone page, so it may cast links but never files from this Mac.
+            if action.get('type') == 'cast' and not str(action.get('target', '')).startswith(('http://', 'https://')):
+                self.phone.toast('Only web links can be cast from the phone')
+                return
         AppHelper.callAfter(self.on_pad_message, msg)
 
     def do_search(self, query):
@@ -520,7 +551,7 @@ end if
             browser.stop_discovery()
             if casts and casts[0].cast_info.host and casts[0].cast_info.host != self.config['host']:
                 host = casts[0].cast_info.host
-                log.info('projector moved %s -> %s', self.config['host'], host)
+                log.info('TV moved %s -> %s', self.config['host'], host)
                 self.config['host'] = host
                 save_config(self.config)
                 self.remote.host = host
@@ -569,6 +600,11 @@ end if
         if self.state != 'connected':
             self.notify_not_ready()
             return
+        if key == 'SETTINGS':
+            # Google TV ignores SETTINGS over the remote protocol; holding Home opens the settings panel instead.
+            self.on_loop(self.remote.send_key_command, 'HOME', 'START_LONG')
+            self.on_loop(self.loop.call_later, 1.2, self.remote.send_key_command, 'HOME', 'END_LONG')
+            return
         self.on_loop(self.remote.send_key_command, key)
 
     def key_action(self, key):
@@ -588,12 +624,12 @@ end if
 
     def set_volume(self, level):
         if self.cast is None:
-            notify('Volume', 'Projector not reachable over Cast yet.')
+            notify('Volume', 'The TV is not reachable over Cast yet.')
             return
         self.cast.set_volume(max(0, min(100, level)) / 100)
 
     def volume_exact(self, _):
-        response = self.ask('Set volume', 'Choose a level from 0 to 100.', str(self.current_volume() or ''), 'Set', '0–100')
+        response = self.ask('Set volume', 'Pick a level from 0 to 100.', str(self.current_volume() or ''), 'Set', '0–100', kind='number')
         if response and response.strip().isdigit():
             self.set_volume(int(response.strip()))
 
@@ -622,10 +658,13 @@ end if
             self.on_loop(self.remote.send_text, char)
 
     def add_app(self, _):
-        label = self.ask('Add an app', 'Name it as you want it in the menu.', '', 'Next', 'e.g. JioHotstar')
+        label = self.ask('Add an app', 'Name it as you want it in the menu.', '', 'Next', 'e.g. JioHotstar', kind='name')
         if not label or not label.strip():
             return
-        link = self.ask('Add an app', f'Paste the web link that opens {label.strip()} on the TV.', 'https://', 'Add', 'https://www.hotstar.com')
+        link = self.ask(
+            'Add an app', f'Paste the web link that opens {label.strip()} on the TV.', '', 'Add',
+            'https://www.hotstar.com', kind='url', suggestion=self.clipboard_url(),
+        )
         if link and link.strip().startswith(('http://', 'https://')):
             self.config['apps'][label.strip()] = link.strip()
             save_config(self.config)
@@ -637,13 +676,15 @@ end if
         text = NSPasteboard.generalPasteboard().stringForType_(NSPasteboardTypeString)
         return (text or '').strip()
 
+    def clipboard_url(self):
+        text = self.clipboard_text()
+        return text if text.startswith(('http://', 'https://')) and ' ' not in text else ''
+
     def open_link(self, text):
         if not text:
-            default = self.clipboard_text()
-            default = default if default.startswith(('http://', 'https://')) else ''
             text = self.ask(
                 'Open on the TV', 'Paste a YouTube, Netflix or Prime Video link, or type something to search YouTube.',
-                default, 'Open', 'Link or search',
+                '', 'Open', 'Link or search', kind='search', suggestion=self.clipboard_url(),
             )
         if not text or not text.strip():
             return
@@ -720,7 +761,7 @@ end if
                 return
             except Exception as exc:
                 log.warning('voice session failed: %s', exc)
-                notify('Voice', 'The projector did not accept a voice session.')
+                notify('Voice', 'The TV did not accept a voice session.')
                 return
             session = self.voice_session
             try:
@@ -728,7 +769,7 @@ end if
             except Exception as exc:
                 log.warning('mic failed: %s', exc)
                 notify(
-                    'Voice', 'Could not open the microphone. Allow Python under System Settings → Privacy → Microphone.'
+                    'Voice', f'Could not open the microphone. Allow {APP_NAME} under System Settings → Privacy → Microphone.'
                 )
                 self.on_loop(self.remote.end_voice, session)
                 self.voice_session = None
@@ -778,7 +819,7 @@ end if
             self.sleep_timer = threading.Timer(minutes * 60, self.sleep_now)
             self.sleep_timer.daemon = True
             self.sleep_timer.start()
-            notify('Sleep timer', f'Projector will go to standby in {minutes} minutes.')
+            notify('Sleep timer', f'The TV will go to standby in {minutes} minutes.')
         elif action == 'cancel':
             self.cancel_sleep()
 
@@ -804,7 +845,7 @@ end if
         log.info('cast file: opening file dialog')
         NSApplication.sharedApplication().activateIgnoringOtherApps_(True)
         panel = NSOpenPanel.openPanel()
-        panel.setTitle_('Cast to projector')
+        panel.setTitle_('Cast to the TV')
         panel.setAllowedFileTypes_([ext.lstrip('.') for ext in caster.PLAYABLE])
         panel.setCanChooseDirectories_(False)
         panel.setAllowsMultipleSelection_(False)
@@ -815,12 +856,10 @@ end if
         self.cast_media(url, caster.content_type_for(path), Path(path).name)
 
     def cast_url(self, _):
-        default = self.clipboard_text()
         url = self.ask(
             'Cast a link',
             'A direct video, audio or image link (MP4, WebM, MP3, M3U8). YouTube and Netflix links open in their apps.',
-            default if default.startswith('http') else 'https://',
-            'Cast', 'https://…/video.mp4',
+            '', 'Cast', 'https://…/video.mp4', kind='url', suggestion=self.clipboard_url(),
         )
         if not url or not url.strip().startswith('http'):
             return
@@ -833,7 +872,7 @@ end if
 
     def cast_media(self, url, content_type, title):
         if self.cast is None:
-            notify('Cast', 'Projector not reachable over Cast yet.')
+            notify('Cast', 'The TV is not reachable over Cast yet.')
             return
 
         def run():
@@ -849,7 +888,7 @@ end if
                         break
                 log.info('casting %s -> %s (%s)', url, state, controller.status.idle_reason)
                 if state == 'IDLE' and controller.status.idle_reason == 'ERROR':
-                    notify('Cast failed', 'The projector could not play this. Use a direct MP4/WebM/MP3/M3U8 link, or "Open link" for YouTube/Netflix.')
+                    notify('Cast failed', 'The TV could not play this. Use a direct MP4/WebM/MP3/M3U8 link, or "Open link" for YouTube/Netflix.')
                     self.cast.quit_app()
                 else:
                     notify('Casting', title or url)
@@ -886,7 +925,7 @@ end if
         if not accessibility_trusted(prompt=True):
             rumps.alert(
                 'Accessibility needed',
-                f'Allow "{"BeamBar" if FROZEN else "Python"}" under System Settings → Privacy & Security → Accessibility, then turn hotkeys on again.',
+                f'Allow "{APP_NAME}" under System Settings → Privacy & Security → Accessibility, then turn hotkeys on again.',
             )
             return
         item.state = self.hotkeys.start()
@@ -962,6 +1001,8 @@ end if
             self.send_tab()
         elif kind == 'mirror':
             self.mirror()
+        elif kind == 'find':
+            self.find_devices(None)
         elif kind == 'device':
             self.switch_device(action['name'])
         elif kind == 'haptic':
@@ -1011,8 +1052,10 @@ end if
             if self.remote.current_app == 'com.android.vending':
                 self.on_loop(self.remote.send_key_command, 'DPAD_CENTER')
                 time.sleep(2.5)
-            notify('Mirror', 'AirScreen is starting on the projector. Pick it under Screen Mirroring.')
+            notify('Mirror', 'AirScreen is starting on the TV. Pick it under Screen Mirroring.')
             script = """
+on run argv
+set target to item 1 of argv
 tell application "System Events"
     tell process "ControlCenter"
         if (count of windows) is 0 then
@@ -1032,7 +1075,8 @@ tell application "System Events"
         delay 2
         repeat with e in (entire contents of window 1)
             try
-                if (name of e as string) contains "AS-H0030" then
+                set n to name of e as string
+                if (target is not "" and n contains target) or (target is "" and n starts with "AS-") then
                     click e
                     exit repeat
                 end if
@@ -1040,13 +1084,16 @@ tell application "System Events"
         end repeat
     end tell
 end tell
+end run
 """
-            subprocess.run(['osascript', '-e', script], capture_output=True, text=True)
+            # AirScreen calls its receiver "AS-<model>" unless renamed; set airplay_name for a custom name.
+            target = self.config.get('airplay_name', '')
+            subprocess.run(['osascript', '-e', script, target], capture_output=True, text=True)
 
         threading.Thread(target=run, daemon=True).start()
 
     def autofocus(self):
-        notify('Autofocus', 'Needs ADB on the projector (not enabled yet).')
+        notify('Autofocus', 'Autofocus needs ADB, which BeamBar does not use. Use the focus option on the TV.')
 
     def switch_device(self, name):
         devices = self.config.get('devices', {})
@@ -1064,6 +1111,7 @@ end tell
         self.state = 'connecting'
         self.on_loop(self.remote.disconnect)
         self.remote = AndroidTVRemote(CLIENT_NAME, str(CERT_FILE), str(KEY_FILE), self.config['host'], loop=self.loop)
+        self.remote.add_current_app_updated_callback(lambda package: log.info('TV app: %s', package))
         threading.Thread(target=self.discover_and_connect, daemon=True).start()
         notify('Devices', f'Switching to {match}…')
 
@@ -1181,6 +1229,8 @@ end tell
             'phone_url': self.phone.url() if self.config.get('phone_remote', True) else None,
             'hotkeys': bool(self.hotkeys.active),
             'login': login_item.is_installed(),
+            'searching': self.searching,
+            'search_note': self.search_note,
         }
 
     # ----- misc -----
@@ -1237,7 +1287,7 @@ end tell
             AppHelper.callAfter(self.show_classic_menu)
             return
         # These open a window, a prompt or a file picker, so get the popover out of the way first.
-        if kind in ('showRemote', 'phoneQR', 'openLink', 'addApp', 'type', 'pair', 'findDevices',
+        if kind in ('showRemote', 'phoneQR', 'openLink', 'addApp', 'type', 'pair',
                     'castFile', 'castUrl', 'sendTab', 'mirror', 'quit'):
             self.center.close()
         if kind == 'castFile':
@@ -1296,7 +1346,7 @@ end tell
         if error:
             rumps.alert('Pairing failed', error)
             return
-        code = self.ask('Pair with your TV', 'Type the code shown on the TV screen.', '', 'Pair', 'Code')
+        code = self.ask('Pair with your TV', 'Type the 6-character code shown on the TV screen.', '', 'Pair', kind='code')
         if not code:
             return
         error = self.finish_pairing(code)
@@ -1308,24 +1358,28 @@ end tell
         self.on_loop(self.remote.disconnect)
         threading.Thread(target=self.discover_and_connect, daemon=True).start()
 
-    def ask(self, title, message, default='', action='OK', placeholder=''):
+    def ask(self, title, message, default='', action='OK', placeholder='', **options):
         from prompt import ask
 
-        return ask(title, message, default, action, placeholder)
+        return ask(title, message, default, action, placeholder, **options)
 
     def notify_not_ready(self):
+        if threading.current_thread() is not threading.main_thread():
+            # Scenes, the sleep timer and YouTube run on worker threads; alerts there can crash AppKit.
+            notify('Not connected', 'Pair with the TV first.' if self.state == 'unpaired' else 'The TV is not connected yet.')
+            return
         NSApplication.sharedApplication().activateIgnoringOtherApps_(True)
         if self.state == 'unpaired':
             if rumps.alert(
                 'Not paired yet',
-                'Your Mac needs a one-time pairing before it can send buttons to the projector.',
+                'Your Mac needs a one-time pairing before it can send buttons to the TV.',
                 ok='Pair now',
                 cancel='Later',
             ):
                 self.pair(None)
             return
         reasons = {
-            'offline': 'The projector is off or not on Wi-Fi. Retrying every 30 seconds.',
+            'offline': 'The TV is off or not on Wi-Fi. Retrying every 30 seconds.',
             'connecting': 'Still connecting, try again in a moment.',
         }
         rumps.alert('Not connected', reasons.get(self.state, self.state))
@@ -1351,7 +1405,7 @@ end tell
         labels = {
             'connected': self.config['name'],
             'unpaired': 'Not paired — use "Pair with TV…"',
-            'offline': 'Projector offline',
+            'offline': 'TV offline',
             'connecting': 'Connecting…',
         }
         parts = [labels[self.state]]

@@ -3,6 +3,7 @@ import logging
 import mimetypes
 import os
 import re
+import secrets
 
 from net import lan_ip
 import threading
@@ -110,7 +111,8 @@ class MediaServer:
     def url_for(self, path):
         self.start()
         path = str(Path(path).expanduser().resolve())
-        route = '/' + quote(Path(path).name)
+        # A random part keeps the link unguessable to others on the network.
+        route = f'/{secrets.token_urlsafe(12)}/' + quote(Path(path).name)
         self.files[route] = path
         return f'http://{lan_ip()}:{PORT}{route}'
 

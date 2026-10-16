@@ -1,151 +1,127 @@
+# Standard Library
+import json
+
 # Third Party Library
 import objc
 from AppKit import (
     NSApp,
     NSBackingStoreBuffered,
-    NSBezelStyleRounded,
-    NSButton,
-    NSColor,
-    NSFont,
-    NSImageView,
-    NSLayoutAttributeCenterX,
-    NSLayoutAttributeCenterY,
     NSMakeRect,
     NSPanel,
-    NSStackView,
-    NSTextAlignmentCenter,
-    NSTextField,
-    NSTextFieldRoundedBezel,
-    NSUserInterfaceLayoutOrientationHorizontal,
-    NSUserInterfaceLayoutOrientationVertical,
+    NSURL,
+    NSViewHeightSizable,
+    NSViewWidthSizable,
     NSVisualEffectBlendingModeBehindWindow,
     NSVisualEffectMaterialPopover,
     NSVisualEffectStateActive,
     NSVisualEffectView,
+    NSWindowCloseButton,
     NSWindowMiniaturizeButton,
-    NSWindowStyleMaskClosable,
     NSWindowStyleMaskFullSizeContentView,
     NSWindowStyleMaskTitled,
     NSWindowZoomButton,
 )
 from Foundation import NSObject
+from WebKit import WKUserScript, WKWebView, WKWebViewConfiguration
 
-WIDTH = 340
-FIELD = 292
+from pad import Bridge
+from paths import RESOURCES
+
+HTML = RESOURCES / 'prompt.html'
+WIDTH = 380
+DOCUMENT_START = 0  # WKUserScriptInjectionTimeAtDocumentStart
 
 
 class BeamBarPrompt(NSObject):
-    """A small modal panel asking for one line of text: icon, title, hint, field, Cancel and an action."""
+    """A small modal panel asking for one line of text, drawn by prompt.html in the control center's style."""
 
-    def initWithTitle_message_default_action_placeholder_(self, title, message, default, action, placeholder):
+    def initWithOptions_(self, options):
         self = objc.super(BeamBarPrompt, self).init()
         if self is None:
             return None
         self.result = None
-        self.build(title, message, default or '', action or 'OK', placeholder or '')
+        self.build(options)
         return self
 
     @objc.python_method
-    def build(self, title, message, default, action, placeholder):
+    def build(self, options):
         panel = NSPanel.alloc().initWithContentRect_styleMask_backing_defer_(
-            NSMakeRect(0, 0, WIDTH, 260),
-            NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskFullSizeContentView,
+            NSMakeRect(0, 0, WIDTH, 200),
+            NSWindowStyleMaskTitled | NSWindowStyleMaskFullSizeContentView,
             NSBackingStoreBuffered, False,
         )
-        panel.setTitle_(title)
+        panel.setTitle_(options['title'])
         panel.setTitlebarAppearsTransparent_(True)
         panel.setTitleVisibility_(1)
         panel.setMovableByWindowBackground_(True)
         panel.setReleasedWhenClosed_(False)
-        panel.setDelegate_(self)
-        for button in (NSWindowMiniaturizeButton, NSWindowZoomButton):
-            panel.standardWindowButton_(button).setHidden_(True)
+        for kind in (NSWindowCloseButton, NSWindowMiniaturizeButton, NSWindowZoomButton):
+            button = panel.standardWindowButton_(kind)
+            if button is not None:
+                button.setHidden_(True)
 
-        glass = NSVisualEffectView.alloc().initWithFrame_(NSMakeRect(0, 0, WIDTH, 260))
+        glass = NSVisualEffectView.alloc().initWithFrame_(NSMakeRect(0, 0, WIDTH, 200))
         glass.setMaterial_(NSVisualEffectMaterialPopover)
         glass.setBlendingMode_(NSVisualEffectBlendingModeBehindWindow)
         glass.setState_(NSVisualEffectStateActive)
         panel.setContentView_(glass)
 
-        icon = NSImageView.imageViewWithImage_(NSApp.applicationIconImage())
-        icon.setTranslatesAutoresizingMaskIntoConstraints_(False)
-        icon.widthAnchor().constraintEqualToConstant_(52).setActive_(True)
-        icon.heightAnchor().constraintEqualToConstant_(52).setActive_(True)
-
-        heading = NSTextField.labelWithString_(title)
-        heading.setFont_(NSFont.systemFontOfSize_weight_(15, 0.6))
-        heading.setAlignment_(NSTextAlignmentCenter)
-
-        hint = NSTextField.wrappingLabelWithString_(message)
-        hint.setFont_(NSFont.systemFontOfSize_(12))
-        hint.setTextColor_(NSColor.secondaryLabelColor())
-        hint.setAlignment_(NSTextAlignmentCenter)
-        hint.setPreferredMaxLayoutWidth_(FIELD)
-
-        self.field = NSTextField.textFieldWithString_(default)
-        self.field.setBezelStyle_(NSTextFieldRoundedBezel)
-        self.field.setFont_(NSFont.systemFontOfSize_(14))
-        self.field.setPlaceholderString_(placeholder)
-        self.field.setTranslatesAutoresizingMaskIntoConstraints_(False)
-        self.field.widthAnchor().constraintEqualToConstant_(FIELD).setActive_(True)
-        self.field.heightAnchor().constraintEqualToConstant_(30).setActive_(True)
-
-        cancel = NSButton.buttonWithTitle_target_action_('Cancel', self, 'cancel:')
-        cancel.setBezelStyle_(NSBezelStyleRounded)
-        cancel.setKeyEquivalent_('\x1b')
-        primary = NSButton.buttonWithTitle_target_action_(action, self, 'confirm:')
-        primary.setBezelStyle_(NSBezelStyleRounded)
-        primary.setKeyEquivalent_('\r')
-        for button in (cancel, primary):
-            button.setTranslatesAutoresizingMaskIntoConstraints_(False)
-            button.widthAnchor().constraintEqualToConstant_((FIELD - 10) / 2).setActive_(True)
-        buttons = NSStackView.stackViewWithViews_([cancel, primary])
-        buttons.setOrientation_(NSUserInterfaceLayoutOrientationHorizontal)
-        buttons.setAlignment_(NSLayoutAttributeCenterY)
-        buttons.setSpacing_(10)
-
-        stack = NSStackView.stackViewWithViews_([icon, heading, hint, self.field, buttons])
-        stack.setOrientation_(NSUserInterfaceLayoutOrientationVertical)
-        stack.setAlignment_(NSLayoutAttributeCenterX)
-        stack.setSpacing_(8)
-        stack.setCustomSpacing_afterView_(10, icon)
-        stack.setCustomSpacing_afterView_(4, heading)
-        stack.setCustomSpacing_afterView_(14, hint)
-        stack.setCustomSpacing_afterView_(16, self.field)
-        stack.setTranslatesAutoresizingMaskIntoConstraints_(False)
-        glass.addSubview_(stack)
-        stack.centerXAnchor().constraintEqualToAnchor_(glass.centerXAnchor()).setActive_(True)
-        stack.topAnchor().constraintEqualToAnchor_constant_(glass.topAnchor(), 30).setActive_(True)
-        stack.layoutSubtreeIfNeeded()
-        panel.setContentSize_((WIDTH, 30 + stack.fittingSize().height + 20))
+        self.bridge = Bridge.alloc().init()
+        self.bridge.on_message = self.on_message
+        config = WKWebViewConfiguration.alloc().init()
+        controller = config.userContentController()
+        controller.addScriptMessageHandler_name_(self.bridge, 'remote')
+        setup = f'window.PROMPT = {json.dumps(options)};'
+        controller.addUserScript_(
+            WKUserScript.alloc().initWithSource_injectionTime_forMainFrameOnly_(setup, DOCUMENT_START, True)
+        )
+        self.webview = WKWebView.alloc().initWithFrame_configuration_(glass.bounds(), config)
+        self.webview.setValue_forKey_(False, 'drawsBackground')
+        self.webview.setAutoresizingMask_(NSViewWidthSizable | NSViewHeightSizable)
+        glass.addSubview_(self.webview)
+        self.webview.loadFileURL_allowingReadAccessToURL_(
+            NSURL.fileURLWithPath_(str(HTML)), NSURL.fileURLWithPath_(str(HTML.parent))
+        )
         self.panel = panel
+
+    @objc.python_method
+    def on_message(self, msg):
+        kind = msg.get('type')
+        if kind in ('ready', 'size'):
+            height = float(msg.get('h') or 0)
+            if height > 60 and abs(self.panel.contentView().frame().size.height - height) >= 1:
+                frame = self.panel.frame()
+                top = frame.origin.y + frame.size.height
+                self.panel.setContentSize_((WIDTH, height))
+                self.panel.setFrameTopLeftPoint_((frame.origin.x, top))
+            if kind == 'ready':
+                self.panel.center()
+                self.panel.setAlphaValue_(1)
+                self.panel.makeFirstResponder_(self.webview)
+        elif kind == 'done':
+            self.result = str(msg.get('value') or '')
+            NSApp.stopModal()
+        elif kind == 'cancel':
+            self.result = None
+            NSApp.stopModal()
 
     @objc.python_method
     def run(self):
         """Shows the panel modally; returns the text, or None if cancelled."""
+        self.panel.setAlphaValue_(0)  # shown once the page has laid out, so it never flashes empty
         self.panel.center()
         NSApp.activateIgnoringOtherApps_(True)
         self.panel.makeKeyAndOrderFront_(None)
-        self.panel.makeFirstResponder_(self.field)
-        self.field.selectText_(None)
         NSApp.runModalForWindow_(self.panel)
         self.panel.orderOut_(None)
+        self.webview.configuration().userContentController().removeScriptMessageHandlerForName_('remote')
         return self.result
 
-    def confirm_(self, _):
-        self.result = self.field.stringValue()
-        NSApp.stopModal()
 
-    def cancel_(self, _):
-        self.result = None
-        NSApp.stopModal()
-
-    def windowShouldClose_(self, _):
-        self.cancel_(None)
-        return True
-
-
-def ask(title, message, default='', action='OK', placeholder=''):
-    return BeamBarPrompt.alloc().initWithTitle_message_default_action_placeholder_(
-        title, message, default, action, placeholder
-    ).run()
+def ask(title, message, default='', action='OK', placeholder='', kind='text', suggestion=''):
+    """kind: text, name, url, search, number (0-100) or code (6-character pairing code)."""
+    options = {
+        'title': title, 'message': message, 'value': default or '', 'action': action or 'OK',
+        'placeholder': placeholder or '', 'kind': kind, 'suggestion': suggestion or '',
+    }
+    return BeamBarPrompt.alloc().initWithOptions_(options).run()

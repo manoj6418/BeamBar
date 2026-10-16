@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="color-scheme" content="dark light">
+<title>Phone remote</title>
+<style>
+  :root {
+    --ink: rgba(255, 255, 255, 0.95);
+    --ink-2: rgba(255, 255, 255, 0.6);
+    --ink-3: rgba(255, 255, 255, 0.36);
+    --card: rgba(255, 255, 255, 0.06);
+    --card-2: rgba(255, 255, 255, 0.1);
+    --line: rgba(255, 255, 255, 0.1);
+    --beam-1: #5ee7ff;
+    --beam-2: #8b7cff;
+    --beam: linear-gradient(135deg, var(--beam-1), var(--beam-2));
+    --live: #30d158;
+    --tint: rgba(16, 18, 28, 0.55);
+    --spring: cubic-bezier(0.22, 1.25, 0.36, 1);
+    --ease: cubic-bezier(0.25, 0.1, 0.25, 1);
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --ink: rgba(0, 0, 0, 0.88);
+      --ink-2: rgba(0, 0, 0, 0.55);
+      --ink-3: rgba(0, 0, 0, 0.32);
+      --card: rgba(0, 0, 0, 0.045);
+      --card-2: rgba(0, 0, 0, 0.08);
+      --line: rgba(0, 0, 0, 0.1);
+      --beam-1: #00a8d6;
+      --beam-2: #6a5cff;
+      --live: #28a745;
+      --tint: rgba(255, 255, 255, 0.4);
+    }
+  }
+  * { box-sizing: border-box; -webkit-user-select: none; user-select: none; }
+  html { margin: 0; background: var(--tint); }
+  body { margin: 0; width: 320px; font: 13px/1.35 -apple-system, "SF Pro Text", sans-serif; color: var(--ink); cursor: default; }
+  svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; display: block; }
+
+  .wrap { padding: 20px 20px 18px; display: flex; flex-direction: column; gap: 16px; }
+
+  .head { display: flex; gap: 12px; align-items: center; }
+  .head img { width: 38px; height: 38px; border-radius: 9px; flex: 0 0 auto; }
+  .head .text { flex: 1; min-width: 0; }
+  .title { font-size: 15px; font-weight: 650; letter-spacing: -0.01em; }
+  .sub { margin-top: 2px; color: var(--ink-2); font-size: 12.5px; }
+  .icon-btn { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; color: var(--ink-3); flex: 0 0 auto; align-self: flex-start; }
+  .icon-btn:hover { background: var(--card-2); color: var(--ink); }
+
+  .stage { display: grid; place-items: center; padding: 4px 0 0; }
+  .ring { padding: 2px; border-radius: 24px; background: var(--beam); box-shadow: 0 10px 34px color-mix(in srgb, var(--beam-2) 30%, transparent); }
+  .card { position: relative; width: 228px; height: 228px; border-radius: 22px; background: #fff; display: grid; place-items: center; }
+  .card img.code { width: 200px; height: 200px; image-rendering: pixelated; transition: opacity 0.2s var(--ease); }
+  .card .logo { position: absolute; width: 46px; height: 46px; padding: 4px; border-radius: 12px; background: #fff; }
+  .card .logo img { width: 100%; height: 100%; border-radius: 9px; display: block; }
+
+  .presence { display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--ink-2); font-size: 12px; margin-top: -2px; }
+  .presence .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-3); animation: pulse 1.6s ease-in-out infinite; }
+  .presence.live { color: var(--ink); }
+  .presence.live .dot { background: var(--live); animation: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--live) 22%, transparent); }
+  @keyframes pulse { 50% { opacity: 0.3; } }
+
+  .seg { display: grid; grid-template-columns: 1fr 1fr; padding: 3px; border-radius: 10px; background: var(--card); position: relative; }
+  .seg .thumb { position: absolute; top: 3px; bottom: 3px; left: 3px; width: calc(50% - 3px); border-radius: 8px; background: var(--card-2); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2); transition: transform 0.3s var(--spring); }
+  .seg.ip .thumb { transform: translateX(100%); }
+  .seg div[data-mode] { position: relative; text-align: center; padding: 5px 0; font-size: 12px; font-weight: 550; color: var(--ink-2); border-radius: 8px; transition: color 0.2s; }
+  .seg div[data-mode].on { color: var(--ink); }
+
+  .link { display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 4px 0 12px; border-radius: 10px; background: var(--card); box-shadow: inset 0 0 0 1px var(--line); }
+  .link code { flex: 1; min-width: 0; font: 500 12.5px ui-monospace, "SF Mono", monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; -webkit-user-select: text; user-select: text; }
+  .copy { height: 30px; padding: 0 10px; border-radius: 8px; display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; background: var(--beam); color: #0b1020; transition: transform 0.25s var(--spring), filter 0.15s; }
+  .copy:hover { filter: brightness(1.1); }
+  .copy:active { transform: scale(0.95); }
+  .copy svg { width: 14px; height: 14px; }
+  .hint { color: var(--ink-3); font-size: 11.5px; text-align: center; margin-top: -6px; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap" id="wrap">
+  <div class="head">
+    <img src="assets/icon-512.png" alt="">
+    <div class="text">
+      <div class="title">Phone remote</div>
+      <div class="sub">Scan with your phone's camera</div>
+    </div>
+    <div class="icon-btn" id="close" title="Close (Esc)"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></div>
+  </div>
+
+  <div class="stage">
+    <div class="ring"><div class="card">
+      <img class="code" id="code" alt="QR code">
+      <div class="logo"><img src="assets/icon-512.png" alt=""></div>
+    </div></div>
+  </div>
+
+  <div class="presence" id="presence"><span class="dot"></span><span id="presence-text">Waiting for your phone…</span></div>
+
+  <div class="seg" id="seg">
+    <div class="thumb"></div>
+    <div data-mode="name" class="on">Name link</div>
+    <div data-mode="ip">IP link</div>
+  </div>
+
+  <div class="link">
+    <code id="url"></code>
+    <div class="copy" id="copy"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg><span id="copy-text">Copy</span></div>
+  </div>
+
+  <div class="hint" id="hint"></div>
+</div>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const send = (msg) => window.webkit && window.webkit.messageHandlers.remote.postMessage(msg);
+  const Q = window.QR || { name: { url: '', png: '' }, ip: { url: '', png: '' } };
+  const HINTS = {
+    name: 'Same Wi-Fi needed. Won’t open? Try the IP link.',
+    ip: 'Works on every phone, but changes with your Mac’s IP.',
+  };
+  let mode = 'name';
+  let copiedTimer = null;
+
+  const render = () => {
+    const entry = Q[mode];
+    $('code').src = 'data:image/png;base64,' + entry.png;
+    $('url').textContent = entry.url.replace(/^https?:\/\//, '');
+    $('seg').classList.toggle('ip', mode === 'ip');
+    document.querySelectorAll('[data-mode]').forEach((el) => el.classList.toggle('on', el.dataset.mode === mode));
+    $('hint').textContent = HINTS[mode];
+  };
+
+  $('seg').addEventListener('click', (e) => {
+    const el = e.target.closest('[data-mode]');
+    if (!el || el.dataset.mode === mode) return;
+    mode = el.dataset.mode;
+    render();
+  });
+  $('copy').addEventListener('click', () => {
+    send({ type: 'copy', url: Q[mode].url });
+    $('copy-text').textContent = 'Copied';
+    clearTimeout(copiedTimer);
+    copiedTimer = setTimeout(() => { $('copy-text').textContent = 'Copy'; }, 1600);
+  });
+  $('close').addEventListener('click', () => send({ type: 'close' }));
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') send({ type: 'close' });
+    else if ((e.metaKey && e.key === 'c') && !String(window.getSelection())) $('copy').click();
+  });
+
+  window.qr = {
+    setPhones(count) {
+      $('presence').classList.toggle('live', count > 0);
+      $('presence-text').textContent = count > 1 ? `${count} phones connected` : count === 1 ? 'Phone connected' : 'Waiting for your phone…';
+    },
+  };
+
+  render();
+  send({ type: 'ready', h: Math.ceil($('wrap').getBoundingClientRect().height) });
+})();
+</script>
+</body>
+</html>

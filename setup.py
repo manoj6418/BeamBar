@@ -9,7 +9,7 @@ setup(
     version=VERSION,
     app=['beambar_main.py'],
     data_files=[
-        ('', ['pad.html', 'center.html']),
+        ('', ['pad.html', 'center.html', 'prompt.html', 'qr.html']),
         ('assets', ['assets/icon-512.png', 'assets/menubar.png']),
     ],
     options={

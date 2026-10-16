@@ -22,7 +22,7 @@ The script creates a virtual environment, installs the dependencies, puts the `b
 
 1. Turn on the TV or projector and make sure it's on the same Wi-Fi as your Mac.
 2. Click the BeamBar icon (a small projector) in the menu bar. BeamBar finds the device by itself; if there are several, choose one under **Devices**.
-3. Choose **Pair with projector…** and type the code shown on the screen. Pairing is a one-time step per device.
+3. Choose **Pair with TV…** and type the code shown on the screen. Pairing is a one-time step per device.
 4. For global hotkeys, allow BeamBar under **System Settings → Privacy & Security → Accessibility** when asked.
 
 Use **BeamBar menu → Start at login** to keep it running. To restart it: `./run.sh`. Logs: `~/Library/Logs/beambar.log`. Settings: `~/.config/beambar/config.json` (edit, then restart).

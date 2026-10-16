@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="color-scheme" content="dark light">
+<title>BeamBar</title>
+<style>
+  :root {
+    --ink: rgba(255, 255, 255, 0.95);
+    --ink-2: rgba(255, 255, 255, 0.6);
+    --ink-3: rgba(255, 255, 255, 0.36);
+    --card: rgba(255, 255, 255, 0.06);
+    --card-2: rgba(255, 255, 255, 0.1);
+    --line: rgba(255, 255, 255, 0.1);
+    --beam-1: #5ee7ff;
+    --beam-2: #8b7cff;
+    --beam: linear-gradient(135deg, var(--beam-1), var(--beam-2));
+    --on-beam: #0b1020;
+    --warn: #ff9f0a;
+    --tint: rgba(16, 18, 28, 0.55);
+    --spring: cubic-bezier(0.22, 1.25, 0.36, 1);
+    --ease: cubic-bezier(0.25, 0.1, 0.25, 1);
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --ink: rgba(0, 0, 0, 0.88);
+      --ink-2: rgba(0, 0, 0, 0.55);
+      --ink-3: rgba(0, 0, 0, 0.32);
+      --card: rgba(0, 0, 0, 0.045);
+      --card-2: rgba(0, 0, 0, 0.08);
+      --line: rgba(0, 0, 0, 0.1);
+      --beam-1: #00a8d6;
+      --beam-2: #6a5cff;
+      --on-beam: #fff;
+      --warn: #c93400;
+      --tint: rgba(255, 255, 255, 0.4);
+    }
+  }
+  * { box-sizing: border-box; -webkit-user-select: none; user-select: none; }
+  html { margin: 0; background: var(--tint); }
+  body { margin: 0; background: transparent; }
+  body { width: 380px; font: 13px/1.35 -apple-system, "SF Pro Text", sans-serif; color: var(--ink); cursor: default; }
+  svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; display: block; }
+
+  .wrap { padding: 22px 20px 18px; display: flex; flex-direction: column; gap: 16px; }
+
+  .head { display: flex; gap: 12px; align-items: flex-start; }
+  .head img { width: 38px; height: 38px; flex: 0 0 auto; border-radius: 9px; }
+  .title { font-size: 15px; font-weight: 650; letter-spacing: -0.01em; }
+  .message { margin-top: 3px; color: var(--ink-2); font-size: 12.5px; }
+
+  .field {
+    display: flex; align-items: center; gap: 9px; height: 40px; padding: 0 6px 0 12px; border-radius: 11px;
+    background: var(--card); box-shadow: inset 0 0 0 1px var(--line);
+    transition: box-shadow 0.2s var(--ease), background 0.2s var(--ease);
+  }
+  .field:focus-within { background: var(--card-2); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--beam-1) 70%, transparent), 0 0 0 3px color-mix(in srgb, var(--beam-1) 22%, transparent); }
+  .field.bad { box-shadow: inset 0 0 0 1px var(--warn), 0 0 0 3px color-mix(in srgb, var(--warn) 22%, transparent); }
+  .field > svg { color: var(--ink-3); flex: 0 0 auto; }
+  .field:focus-within > svg { color: var(--beam-1); }
+  input {
+    flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; color: var(--ink);
+    font: 14px -apple-system, "SF Pro Text", sans-serif; -webkit-user-select: text; user-select: text; caret-color: var(--beam-1);
+  }
+  input::placeholder { color: var(--ink-3); }
+  body.code .field { padding: 0 12px; }
+  body.code .field > svg { display: none; }
+  body.code input { text-align: center; font: 600 22px ui-monospace, "SF Mono", monospace; letter-spacing: 0.35em; text-transform: uppercase; }
+  body.code input::placeholder { letter-spacing: 0.35em; font-weight: 400; }
+  .clear { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; color: var(--ink-3); flex: 0 0 auto; }
+  .clear:hover { background: var(--card-2); color: var(--ink); }
+  .clear svg { width: 14px; height: 14px; }
+  .clear[hidden] { display: none; }
+
+  .under { margin-top: -8px; min-height: 0; display: flex; flex-direction: column; gap: 8px; }
+  .error { color: var(--warn); font-size: 12px; padding: 0 2px; }
+  .error[hidden] { display: none; }
+  .chip {
+    align-self: flex-start; max-width: 100%; display: flex; align-items: center; gap: 7px; padding: 6px 10px 6px 8px;
+    border-radius: 9px; background: var(--card); color: var(--ink-2); font-size: 12px;
+    transition: background 0.15s var(--ease), color 0.15s var(--ease), transform 0.25s var(--spring);
+  }
+  .chip:hover { background: var(--card-2); color: var(--ink); }
+  .chip:active { transform: scale(0.97); }
+  .chip svg { width: 14px; height: 14px; flex: 0 0 auto; }
+  .chip span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chip b { color: var(--ink); font-weight: 550; }
+  .chip[hidden] { display: none; }
+
+  .slider { display: flex; align-items: center; gap: 10px; padding: 0 2px; }
+  .slider[hidden] { display: none; }
+  .slider svg { color: var(--ink-3); width: 15px; height: 15px; }
+  input[type=range] { -webkit-appearance: none; appearance: none; height: 6px; border-radius: 3px; flex: 1; background: linear-gradient(90deg, var(--beam-1), var(--beam-2)) 0 / var(--p, 50%) 100% no-repeat, var(--card-2); }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35); }
+
+  .buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 2px; }
+  .btn {
+    min-width: 92px; height: 32px; padding: 0 16px; border-radius: 9px; display: grid; place-items: center;
+    font-size: 13px; font-weight: 550; background: var(--card-2); color: var(--ink);
+    transition: filter 0.15s var(--ease), opacity 0.2s var(--ease), transform 0.25s var(--spring);
+  }
+  .btn:hover { filter: brightness(1.15); }
+  .btn:active { transform: scale(0.96); }
+  .btn.primary { background: var(--beam); color: var(--on-beam); box-shadow: 0 4px 14px color-mix(in srgb, var(--beam-2) 35%, transparent); }
+  .btn.primary.off { background: var(--card); color: var(--ink-3); box-shadow: none; filter: none; transform: none; }
+  .keys { margin-right: auto; align-self: center; color: var(--ink-3); font-size: 11px; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap" id="wrap">
+  <div class="head">
+    <img src="assets/icon-512.png" alt="">
+    <div>
+      <div class="title" id="title"></div>
+      <div class="message" id="message"></div>
+    </div>
+  </div>
+
+  <div class="field" id="field">
+    <svg id="glyph" viewBox="0 0 24 24"></svg>
+    <input id="input" spellcheck="false" autocomplete="off" autocapitalize="off">
+    <div class="clear" id="clear" title="Clear" hidden><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></div>
+  </div>
+
+  <div class="under">
+    <div class="error" id="error" hidden></div>
+    <div class="slider" id="slider" hidden>
+      <svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4z"/></svg>
+      <input type="range" id="range" min="0" max="100" step="1">
+      <svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+    </div>
+    <div class="chip" id="chip" hidden>
+      <svg viewBox="0 0 24 24"><rect x="8" y="3" width="8" height="4" rx="1"/><path d="M16 5h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2"/></svg>
+      <span>Paste <b id="chip-text"></b></span>
+    </div>
+  </div>
+
+  <div class="buttons">
+    <div class="keys">esc to cancel</div>
+    <div class="btn" id="cancel">Cancel</div>
+    <div class="btn primary" id="ok"></div>
+  </div>
+</div>
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const send = (msg) => window.webkit && window.webkit.messageHandlers.remote.postMessage(msg);
+  const P = Object.assign({ title: '', message: '', value: '', action: 'OK', placeholder: '', kind: 'text', suggestion: '' }, window.PROMPT || {});
+
+  const GLYPHS = {
+    text: '<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10"/>',
+    name: '<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><path d="M7.5 7.5h.01"/>',
+    url: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+    search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+    number: '<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/>',
+    code: '',
+  };
+  const isUrl = (v) => /^https?:\/\/[^\s/]+\.[^\s]{2,}/i.test(v);
+  const CHECKS = {
+    url: (v) => (isUrl(v) ? '' : 'Use a full link that starts with https://'),
+    number: (v) => (/^\d{1,3}$/.test(v) && +v <= 100 ? '' : 'Use a number from 0 to 100'),
+    code: (v) => (/^[0-9a-f]{6}$/i.test(v) ? '' : 'The code has 6 letters and numbers'),
+  };
+
+  const input = $('input');
+  document.body.classList.add(P.kind);
+  $('title').textContent = P.title;
+  $('message').textContent = P.message;
+  $('message').hidden = !P.message;
+  $('ok').textContent = P.action;
+  $('glyph').innerHTML = GLYPHS[P.kind] || GLYPHS.text;
+  input.placeholder = P.placeholder;
+  input.value = P.value;
+  if (P.kind === 'code') { input.maxLength = 6; input.placeholder = P.placeholder || '••••••'; }
+  if (P.kind === 'number') { input.inputMode = 'numeric'; input.maxLength = 3; $('slider').hidden = false; }
+  if (P.suggestion && !P.value) {
+    $('chip-text').textContent = P.suggestion.replace(/^https?:\/\/(www\.)?/, '').slice(0, 48);
+    $('chip').hidden = false;
+  }
+
+  let touched = false;
+  const problem = () => {
+    const v = input.value.trim();
+    if (!v) return 'empty';
+    return (CHECKS[P.kind] || (() => ''))(v);
+  };
+  const reportSize = () => send({ type: 'size', h: Math.ceil($('wrap').getBoundingClientRect().height) });
+  const render = () => {
+    const p = problem();
+    $('ok').classList.toggle('off', !!p);
+    $('clear').hidden = !input.value || P.kind === 'code';
+    const show = touched && p && p !== 'empty';
+    $('error').textContent = show ? p : '';
+    $('error').hidden = !show;
+    $('field').classList.toggle('bad', !!show);
+    if (P.kind === 'number') {
+      const n = Math.max(0, Math.min(100, parseInt(input.value, 10) || 0));
+      $('range').value = n;
+      $('range').style.setProperty('--p', n + '%');
+    }
+    if (input.value) $('chip').hidden = true;
+    requestAnimationFrame(reportSize);
+  };
+
+  const submit = () => {
+    touched = true;
+    if (problem()) { render(); input.focus(); return; }
+    send({ type: 'done', value: input.value.trim() });
+  };
+  const cancel = () => send({ type: 'cancel' });
+
+  input.addEventListener('input', () => {
+    if (P.kind === 'code') input.value = input.value.replace(/[^0-9a-f]/gi, '').toUpperCase();
+    if (P.kind === 'number') input.value = input.value.replace(/\D/g, '');
+    render();
+  });
+  input.addEventListener('blur', () => { if (input.value) { touched = true; render(); } });
+  $('range').addEventListener('input', () => { input.value = $('range').value; render(); });
+  $('clear').addEventListener('click', () => { input.value = ''; touched = false; render(); input.focus(); });
+  $('chip').addEventListener('click', () => { input.value = P.suggestion; touched = true; render(); input.focus(); });
+  $('ok').addEventListener('click', submit);
+  $('cancel').addEventListener('click', cancel);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); submit(); }
+    else if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+  });
+
+  render();
+  input.focus();
+  if (P.value) input.select();
+  send({ type: 'ready', h: Math.ceil($('wrap').getBoundingClientRect().height) });
+})();
+</script>
+</body>
+</html>

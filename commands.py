@@ -48,16 +48,16 @@ HELP = '''commands:
   volume <0-100> | volume +5 | volume -5 | mute | unmute
   app <name>               open Netflix / YouTube / Prime Video (or any configured app)
   open <link or search>    YouTube/Netflix/Prime link, or a YouTube search
-  type <text>              type into the focused field on the projector
+  type <text>              type into the focused field on the TV
   scene <name>             run a scene from config.json
   sleep <minutes> | sleep cancel | standby | wake
   skip <+/-seconds> | seek <seconds>
-  cast <file or url>       play a local file or stream on the projector
+  cast <file or url>       play a local file or stream on the TV
   remote show | hide | toggle | mini
   phone                    show a QR code to open the phone remote
   center                   open the control center under the menu bar icon
-  focus                    autofocus (needs ADB)
-  status                   current projector state as JSON'''
+  find                     search the network for TVs and add them to Devices
+  status                   current TV state as JSON'''
 
 
 def parse(text):
@@ -136,6 +136,8 @@ def parse(text):
         return {'type': 'focus'}
     if head in ('tab', 'browser'):
         return {'type': 'tab'}
+    if head in ('find', 'devices', 'discover'):
+        return {'type': 'find'}
     if head in ('mirror', 'airplay', 'screen'):
         return {'type': 'mirror'}
     if head in ('device', 'switch') and rest:
@@ -167,7 +169,7 @@ def suggestions(config):
         ('Cancel sleep timer', 'sleep cancel'),
         ('Standby', 'standby'),
         ('Wake', 'wake'),
-        ('Mirror my screen (AirPlay)', 'mirror'), ('Autofocus', 'focus'),
+        ('Mirror my screen (AirPlay)', 'mirror'),
         ('Collapse / expand remote', 'remote mini'),
         ('Hide remote', 'remote hide'),
     ]

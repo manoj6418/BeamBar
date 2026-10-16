@@ -15,7 +15,7 @@ from AppKit import (
 from Foundation import NSData
 
 
-def qr_image(text, size=240, margin=0.08):
+def qr_image(text, size=240, margin=0.08, level='M'):
     """A QR code for `text` as an NSImage of `size` points, black on white with a quiet margin.
 
     Drawn by Core Image, so no extra package is needed; scaled without smoothing so
@@ -24,7 +24,7 @@ def qr_image(text, size=240, margin=0.08):
     data = text.encode('utf-8')
     generator = Quartz.CIFilter.filterWithName_('CIQRCodeGenerator')
     generator.setValue_forKey_(NSData.dataWithBytes_length_(data, len(data)), 'inputMessage')
-    generator.setValue_forKey_('M', 'inputCorrectionLevel')
+    generator.setValue_forKey_(level, 'inputCorrectionLevel')
     code = NSCIImageRep.imageRepWithCIImage_(generator.outputImage())
 
     margin = size * margin
@@ -40,6 +40,11 @@ def qr_image(text, size=240, margin=0.08):
     )
     image.unlockFocus()
     return image
+
+
+def png_bytes(image):
+    rep = NSBitmapImageRep.imageRepWithData_(image.TIFFRepresentation())
+    return bytes(rep.representationUsingType_properties_(NSPNGFileType, {}))
 
 
 def save_png(image, path):
