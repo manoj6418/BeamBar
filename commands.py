@@ -54,6 +54,8 @@ HELP = '''commands:
   skip <+/-seconds> | seek <seconds>
   cast <file or url>       play a local file or stream on the projector
   remote show | hide | toggle | mini
+  phone                    show a QR code to open the phone remote
+  center                   open the control center under the menu bar icon
   focus                    autofocus (needs ADB)
   status                   current projector state as JSON'''
 
@@ -118,6 +120,10 @@ def parse(text):
         return {'type': 'media', 'action': 'seek', 'position': int(rest)}
     if head == 'cast' and rest:
         return {'type': 'cast', 'target': rest}
+    if head == 'phone':
+        return {'type': 'phone'}
+    if head == 'center':
+        return {'type': 'center'}
     if head == 'remote':
         if lower_rest in ('show', 'open'):
             return {'type': 'remote', 'action': 'show'}

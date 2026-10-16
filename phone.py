@@ -25,7 +25,7 @@ PHONE_HEAD = '''<meta name="viewport" content="width=device-width, initial-scale
 <link rel="apple-touch-icon" href="/icon.png">
 <script>window.__phone = true;</script>
 <style>
-  html, body { background: #0d0d10 !important; min-height: 100%; }
+  html, body { background: #0b0d18 !important; min-height: 100%; }
   body { width: 100% !important; max-width: 420px; margin: 0 auto !important; padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom); }
   .remote { border-radius: 0 !important; min-height: 100vh; padding-top: max(34px, env(safe-area-inset-top)) !important; }
   .close, .minimize { display: none !important; }
@@ -41,7 +41,7 @@ PHONE_SCRIPT = '''<script>
   function connect() {
     ws = new WebSocket(url);
     ws.onopen = () => { while (queue.length) ws.send(queue.shift()); };
-    ws.onmessage = (e) => { const m = JSON.parse(e.data); if (!window.remote) return; if (m.status) window.remote.setStatus(m.status); if (m.search) window.remote.setSearchResults(m.search); };
+    ws.onmessage = (e) => { const m = JSON.parse(e.data); if (!window.remote) return; if (m.status) window.remote.setStatus(m.status); if (m.search) window.remote.setSearchResults(m.search); if (m.toast) window.remote.toast(m.toast); };
     ws.onclose = () => { clearTimeout(timer); timer = setTimeout(connect, 1500); };
   }
   window.__phoneSend = (msg) => { const s = JSON.stringify(msg); if (ws && ws.readyState === 1) ws.send(s); else queue.push(s); };
@@ -160,6 +160,12 @@ class PhoneServer:
             return
         payload = json.dumps({'status': status})
         asyncio.run_coroutine_threadsafe(self._broadcast(payload), self.loop)
+
+    def toast(self, text):
+        """Shows a short message on every connected phone."""
+        if self.loop is None or not self.clients:
+            return
+        asyncio.run_coroutine_threadsafe(self._broadcast(json.dumps({'toast': text})), self.loop)
 
     async def _broadcast(self, payload):
         for ws in list(self.clients):

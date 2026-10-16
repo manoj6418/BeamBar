@@ -37,6 +37,7 @@ from pad import build_pad
 from pychromecast.controllers.youtube import YouTubeController
 from voice import VoiceCapture
 
+import menu_views
 import net
 from paths import CERT_FILE, CONFIG_DIR, CONFIG_FILE, KEY_FILE, LOG_FILE, PHONE_HOSTNAME
 
@@ -116,7 +117,18 @@ def youtube_id(text):
 
 class BeamBar(rumps.App):
     def __init__(self):
-        super().__init__('BeamBar', title=ICON, quit_button=None)
+        # Menu bar: the BeamBar glyph as a template image, so macOS tints it for light and dark.
+        glyph = Path(__file__).resolve().parent / 'assets' / 'menubar.png'
+        self.glyph = glyph.exists()
+        if self.glyph:
+            super().__init__('BeamBar', title=None, icon=str(glyph), template=True, quit_button=None)
+        else:
+            super().__init__('BeamBar', title=ICON, quit_button=None)
+        # Dialogs (Add app, pairing code, alerts) show the app icon; without this it's Python's.
+        from AppKit import NSImage
+        icon = NSImage.alloc().initWithContentsOfFile_(str(Path(__file__).resolve().parent / 'assets' / 'icon-512.png'))
+        if icon is not None:
+            NSApplication.sharedApplication().setApplicationIconImage_(icon)
         self.config = load_config()
         self.state = 'connecting'
         self.cast = None
@@ -129,41 +141,76 @@ class BeamBar(rumps.App):
         self.voice = VoiceCapture()
         self.media_server = caster.MediaServer()
         self.media_poll = 0
+        self.center = None  # control center popover, set up once the status item exists
 
         self.loop = asyncio.new_event_loop()
         threading.Thread(target=self.loop.run_forever, daemon=True).start()
 
-        self.status_item = rumps.MenuItem('Connecting…')
         self.app_menu = rumps.MenuItem('Apps')
         self.scene_menu = rumps.MenuItem('Scenes')
         self.login_item = rumps.MenuItem('Start at login', callback=self.toggle_login)
         self.hotkey_item = rumps.MenuItem('Global hotkeys (⌃⌥)', callback=self.toggle_hotkeys)
+
+        # Live header, quick controls and a volume slider at the top of the menu.
+        self.header = menu_views.StatusHeader()
+        self.controls = menu_views.ControlsRow([
+            ('backward.fill', 'Previous', lambda: self.key_action('MEDIA_PREVIOUS')(None)),
+            ('playpause.fill', 'Play / Pause', lambda: self.key_action('MEDIA_PLAY_PAUSE')(None)),
+            ('forward.fill', 'Next', lambda: self.key_action('MEDIA_NEXT')(None)),
+            ('speaker.slash.fill', 'Mute', lambda: self.key_action('VOLUME_MUTE')(None)),
+            ('house.fill', 'Home', lambda: self.key_action('HOME')(None)),
+        ])
+        self.volume_row = menu_views.VolumeRow(self.set_volume)
+
+        def view_item(key, view):
+            item = rumps.MenuItem(key)
+            item._menuitem.setView_(view)
+            return item
+
+        def section(title):
+            from AppKit import NSAttributedString, NSColor, NSFont, NSFontAttributeName, NSForegroundColorAttributeName
+
+            item = rumps.MenuItem(title)
+            item._menuitem.setAttributedTitle_(NSAttributedString.alloc().initWithString_attributes_(
+                title.upper(), {NSFontAttributeName: NSFont.systemFontOfSize_weight_(10.5, 0.5),
+                                NSForegroundColorAttributeName: NSColor.secondaryLabelColor()}))
+            return item
+
+        def icon(item, name):
+            image = menu_views.symbol(name, 13)
+            if image is not None:
+                item._menuitem.setImage_(image)
+            return item
+
         self.menu = [
-            self.status_item,
+            view_item('status-header', self.header.view),
+            view_item('quick-controls', self.controls.view),
+            view_item('volume-slider', self.volume_row.view),
             None,
-            rumps.MenuItem('Show remote', callback=self.show_pad, key='r'),
-            rumps.MenuItem('Hide remote', callback=lambda _: self.pad and self.hide_pad(), key='w'),
+            section('Remote'),
+            icon(rumps.MenuItem('Show remote', callback=self.show_pad, key='r'), 'appletvremote.gen4'),
+            icon(rumps.MenuItem('Phone remote (QR code)…', callback=self.phone_link), 'qrcode'),
+            icon(rumps.MenuItem('Open link or search…', callback=lambda _: self.open_link(None), key='l'), 'link'),
+            icon(rumps.MenuItem('Type text…', callback=self.type_text), 'keyboard'),
+            icon(self.navigate_menu(), 'dpad'),
             None,
-            rumps.MenuItem('Play / Pause', callback=self.key_action('MEDIA_PLAY_PAUSE'), key='p'),
-            self.volume_menu(),
-            self.navigate_menu(),
-            self.media_menu(),
-            self.app_menu,
-            self.scene_menu,
-            rumps.MenuItem('Open link or search…', callback=lambda _: self.open_link(None), key='l'),
-            rumps.MenuItem('Type text…', callback=self.type_text),
-            rumps.MenuItem('Send current browser tab', callback=lambda _: self.send_tab(), key='t'),
-            rumps.MenuItem('Mirror my screen (AirPlay)', callback=lambda _: self.mirror()),
-            self.cast_menu(),
-            self.devices_menu(),
-            rumps.MenuItem('Phone remote link…', callback=self.phone_link),
-            self.power_menu(),
+            section('Watch'),
+            icon(self.app_menu, 'square.grid.2x2'),
+            icon(self.scene_menu, 'sparkles'),
+            icon(self.media_menu(), 'play.rectangle'),
+            icon(rumps.MenuItem('Send current browser tab', callback=lambda _: self.send_tab(), key='t'), 'safari'),
+            icon(rumps.MenuItem('Mirror my screen (AirPlay)', callback=lambda _: self.mirror()), 'airplayvideo'),
+            icon(self.cast_menu(), 'play.tv'),
             None,
-            self.hotkey_item,
-            self.login_item,
-            rumps.MenuItem('Pair with projector…', callback=self.pair),
-            rumps.MenuItem('Reconnect', callback=self.reconnect),
-            rumps.MenuItem('Quit', callback=rumps.quit_application, key='q'),
+            section('Device'),
+            icon(self.devices_menu(), 'tv'),
+            icon(self.power_menu(), 'power'),
+            icon(rumps.MenuItem('Pair with TV…', callback=self.pair), 'link.badge.plus'),
+            icon(rumps.MenuItem('Reconnect', callback=self.reconnect), 'arrow.clockwise'),
+            None,
+            icon(self.hotkey_item, 'command'),
+            icon(self.login_item, 'power.circle'),
+            icon(rumps.MenuItem('Quit BeamBar', callback=rumps.quit_application, key='q'), 'xmark.circle'),
         ]
         self.build_app_menu()
         self.build_scene_menu()
@@ -356,10 +403,16 @@ class BeamBar(rumps.App):
         return True
 
     def phone_link(self, _):
-        url = self.phone.url()
-        NSPasteboard.generalPasteboard().clearContents()
-        NSPasteboard.generalPasteboard().setString_forType_(url, NSPasteboardTypeString)
-        rumps.alert('Phone remote', f'Open this on any phone on your Wi-Fi (copied to clipboard):\n\n{url}\nor http://{PHONE_HOSTNAME}.local:8788\n\nAdd it to the home screen for an app-like remote.')
+        """A small panel with a QR code for the phone remote.
+
+        The code uses the Mac's fixed Bonjour name, which survives IP changes; the panel
+        can switch to the IP link for phones that can't open .local names (some Android).
+        """
+        from phone_qr import BeamBarPhoneQR
+
+        stable = f'http://{PHONE_HOSTNAME}.local:{self.phone.port}'
+        self.phone_qr = BeamBarPhoneQR.alloc().initWithStable_byIP_(stable, self.phone.url())
+        self.phone_qr.show()
 
     def send_tab(self):
         script = """
@@ -396,7 +449,19 @@ end if
             AppHelper.callAfter(self.perform, action)
 
     def on_phone_message(self, msg):
-        if msg.get('type') in ('drag', 'resize', 'close', 'haptic', 'mini'):
+        kind = msg.get('type')
+        if kind in ('drag', 'resize', 'close', 'haptic', 'mini'):
+            return
+        # The phone shows its own prompts; these would otherwise open dialogs on the Mac.
+        if kind == 'pairStart':
+            threading.Thread(target=lambda: self.phone.toast(self.start_pairing() or 'Enter the code shown on the TV'),
+                             daemon=True).start()
+            return
+        if kind == 'pairCode':
+            threading.Thread(target=lambda: self.phone.toast(self.finish_pairing(msg.get('code', '')) or 'Paired ✓'),
+                             daemon=True).start()
+            return
+        if kind == 'command' and commands.parse(msg.get('text', '')) in ({'type': 'phone'},):
             return
         AppHelper.callAfter(self.on_pad_message, msg)
 
@@ -499,12 +564,12 @@ end if
         self.cast.set_volume(max(0, min(100, level)) / 100)
 
     def volume_exact(self, _):
-        response = self.ask('Set volume', 'Volume level (0–100):', str(self.current_volume() or ''))
+        response = self.ask('Set volume', 'Choose a level from 0 to 100.', str(self.current_volume() or ''), 'Set', '0–100')
         if response and response.strip().isdigit():
             self.set_volume(int(response.strip()))
 
     def type_text(self, _):
-        response = self.ask('Type on projector', 'Select a text box on the projector first, then type here:', '')
+        response = self.ask('Type on the TV', 'Select a text box on the TV first, then type here.', '', 'Send', 'Text to type')
         if response and self.state == 'connected':
             self.on_loop(self.remote.send_text, response)
 
@@ -528,10 +593,10 @@ end if
             self.on_loop(self.remote.send_text, char)
 
     def add_app(self, _):
-        label = self.ask('Add app', 'Menu name (e.g. JioHotstar):', '')
+        label = self.ask('Add an app', 'Name it as you want it in the menu.', '', 'Next', 'e.g. JioHotstar')
         if not label or not label.strip():
             return
-        link = self.ask('Add app', f'Web link that opens {label.strip()} (e.g. https://www.hotstar.com):', 'https://')
+        link = self.ask('Add an app', f'Paste the web link that opens {label.strip()} on the TV.', 'https://', 'Add', 'https://www.hotstar.com')
         if link and link.strip().startswith(('http://', 'https://')):
             self.config['apps'][label.strip()] = link.strip()
             save_config(self.config)
@@ -548,7 +613,8 @@ end if
             default = self.clipboard_text()
             default = default if default.startswith(('http://', 'https://')) else ''
             text = self.ask(
-                'Open on projector', 'Paste a YouTube / Netflix / Prime link, or type a YouTube search:', default
+                'Open on the TV', 'Paste a YouTube, Netflix or Prime Video link, or type something to search YouTube.',
+                default, 'Open', 'Link or search',
             )
         if not text or not text.strip():
             return
@@ -722,9 +788,10 @@ end if
     def cast_url(self, _):
         default = self.clipboard_text()
         url = self.ask(
-            'Cast a URL',
-            'Direct MP4 / WebM / MP3 / M3U8 / image link (YouTube and Netflix links go through "Open link"):',
+            'Cast a link',
+            'A direct video, audio or image link (MP4, WebM, MP3, M3U8). YouTube and Netflix links open in their apps.',
             default if default.startswith('http') else 'https://',
+            'Cast', 'https://…/video.mp4',
         )
         if not url or not url.strip().startswith('http'):
             return
@@ -855,6 +922,11 @@ end if
                 self.cast_media(self.media_server.url_for(target), caster.content_type_for(target), Path(target).name)
         elif kind == 'remote':
             self.remote_action(action.get('action'))
+        elif kind == 'phone':
+            self.phone_link(None)
+        elif kind == 'center':
+            if self.center is not None and not self.center.is_shown():
+                self.on_status_click()
         elif kind == 'focus':
             self.autofocus()
         elif kind == 'tab':
@@ -1030,7 +1102,13 @@ end tell
         elif kind == 'power':
             self.power_action(msg)
         elif kind == 'addApp':
-            self.add_app(None)
+            # The phone sends a finished app; the Mac remote asks with its own prompts.
+            if msg.get('label') and str(msg.get('link', '')).startswith(('http://', 'https://')):
+                self.config['apps'][msg['label'].strip()] = msg['link'].strip()
+                save_config(self.config)
+                self.build_app_menu()
+            else:
+                self.add_app(None)
         elif kind == 'type':
             self.type_text(None)
         elif kind == 'pair':
@@ -1076,35 +1154,112 @@ end tell
 
     # ----- misc -----
 
-    def pair(self, _):
+    # ----- control center -----
+
+    def install_center(self):
+        """Left-click on the menu bar icon opens the control center; right-click opens the full menu."""
+        from AppKit import NSEventMaskLeftMouseUp, NSEventMaskRightMouseUp
+
+        from center import ControlCenter
+
+        item = getattr(getattr(self, '_nsapp', None), 'nsstatusitem', None)
+        if item is None:
+            return
+        self.center = ControlCenter(self.on_center_message)
+        self.classic_menu = item.menu()
+        item.setMenu_(None)
+        self.status_click = menu_views.MenuTarget.alloc().initWithHandler_(lambda _: self.on_status_click())
+        button = item.button()
+        button.setTarget_(self.status_click)
+        button.setAction_('fire:')
+        button.sendActionOn_(NSEventMaskLeftMouseUp | NSEventMaskRightMouseUp)
+
+    def on_status_click(self):
+        from AppKit import NSEventModifierFlagControl, NSEventTypeRightMouseUp
+
+        event = NSApplication.sharedApplication().currentEvent()
+        right = event is not None and (
+            event.type() == NSEventTypeRightMouseUp or event.modifierFlags() & NSEventModifierFlagControl
+        )
+        if right:
+            self.show_classic_menu()
+        else:
+            self.center.push_status(self.pad_status())
+            self.center.toggle(self._nsapp.nsstatusitem.button())
+
+    def show_classic_menu(self):
+        self.center.close()
+        item = self._nsapp.nsstatusitem
+        item.setMenu_(self.classic_menu)
+        item.button().performClick_(None)  # opens the menu and returns when it closes
+        item.setMenu_(None)
+
+    def on_center_message(self, msg):
+        kind = msg.get('type')
+        if kind == 'resize':
+            self.center.resize_to(msg.get('height', 0))
+            return
+        if kind == 'close':
+            self.center.close()
+            return
+        if kind == 'menu':
+            AppHelper.callAfter(self.show_classic_menu)
+            return
+        # These open a window or a prompt, so get the popover out of the way first.
+        if kind in ('showRemote', 'phoneQR', 'openLink', 'addApp', 'type', 'pair', 'findDevices'):
+            self.center.close()
+        if kind == 'showRemote':
+            self.show_pad(None)
+        elif kind == 'phoneQR':
+            self.phone_link(None)
+        elif kind == 'findDevices':
+            AppHelper.callAfter(self.find_devices, None)
+        elif kind == 'device':
+            self.switch_device(msg.get('name', ''))
+        else:
+            self.on_pad_message(msg)
+
+    def start_pairing(self):
+        """Asks the TV to show a pairing code. Returns an error message, or None."""
         try:
             self.run_async(self.remote.async_generate_cert_if_missing())
             self.run_async(self.remote.async_start_pairing())
         except (CannotConnect, ConnectionClosed, OSError, TimeoutError) as exc:
-            rumps.alert('Pairing failed', f'Could not reach the projector: {exc}')
-            return
-        code = self.ask('Pair with projector', 'Enter the code shown on the projector screen:', '')
-        if not code:
-            return
+            return f'Could not reach the TV: {exc}'
+        return None
+
+    def finish_pairing(self, code):
+        """Sends the code shown on the TV. Returns an error message, or None."""
         try:
             self.run_async(self.remote.async_finish_pairing(code.strip().upper()))
         except (InvalidAuth, ConnectionClosed, TimeoutError) as exc:
-            rumps.alert('Pairing failed', f'The projector rejected the code: {exc}')
-            return
+            return f'The TV rejected the code: {exc}'
         self.state = 'connecting'
         asyncio.run_coroutine_threadsafe(self.connect_remote(), self.loop)
-        notify('Paired', 'Your Mac can now control the projector.')
+        notify('Paired', 'Your Mac can now control the TV.')
+        return None
+
+    def pair(self, _):
+        error = self.start_pairing()
+        if error:
+            rumps.alert('Pairing failed', error)
+            return
+        code = self.ask('Pair with your TV', 'Type the code shown on the TV screen.', '', 'Pair', 'Code')
+        if not code:
+            return
+        error = self.finish_pairing(code)
+        if error:
+            rumps.alert('Pairing failed', error)
 
     def reconnect(self, _):
         self.state = 'connecting'
         self.on_loop(self.remote.disconnect)
         threading.Thread(target=self.discover_and_connect, daemon=True).start()
 
-    def ask(self, title, message, default):
-        NSApplication.sharedApplication().activateIgnoringOtherApps_(True)
-        window = rumps.Window(message=message, title=title, default_text=default, cancel=True, dimensions=(260, 24))
-        result = window.run()
-        return result.text if result.clicked else None
+    def ask(self, title, message, default='', action='OK', placeholder=''):
+        from prompt import ask
+
+        return ask(title, message, default, action, placeholder)
 
     def notify_not_ready(self):
         NSApplication.sharedApplication().activateIgnoringOtherApps_(True)
@@ -1143,7 +1298,7 @@ end tell
                 pass
         labels = {
             'connected': self.config['name'],
-            'unpaired': 'Not paired — use "Pair with projector…"',
+            'unpaired': 'Not paired — use "Pair with TV…"',
             'offline': 'Projector offline',
             'connecting': 'Connecting…',
         }
@@ -1155,21 +1310,35 @@ end tell
                 parts.append('muted' if muted else f'vol {volume}')
             if self.sleep_in() is not None:
                 parts.append(f'sleep in {self.sleep_in()} min')
-        self.status_item.title = ' · '.join(parts)
+        waiting = {
+            'unpaired': 'Not paired · choose Pair with TV…',
+            'offline': 'Offline · trying again',
+            'connecting': 'Connecting…',
+        }
+        detail = ' · '.join(parts[1:]) if self.state == 'connected' else waiting.get(self.state, '')
+        self.header.update(self.config['name'] or 'BeamBar', detail or 'Connected', self.state)
+        self.volume_row.update(None if volume is None else (0 if muted else volume))
         status = self.pad_status()
         if self.pad is not None and self.pad.isVisible():
             self.pad.push_status(status)
         self.phone.push_status(status)
+        if self.center is None:
+            self.install_center()
+        elif self.center.is_shown():
+            self.center.push_status(status)
         media = self.cast.media_controller.status if self.cast is not None else None
         self.automations.observe(self.state == 'connected', app_name, media.player_state if media and media.media_session_id else None, media.idle_reason if media else None)
         if self.state != 'connected':
-            self.title = f'{ICON} !'
+            text = '!'
         elif self.config.get('menubar') == 'nowplaying' and self.media_status():
             media = self.media_status()
             mark = '▶' if media['state'] == 'PLAYING' else '⏸'
-            self.title = f"{ICON} {mark} {media['title'][:22]}"
+            text = f"{mark} {media['title'][:22]}"
         else:
-            self.title = f'{ICON} {volume}' if volume is not None else ICON
+            text = str(volume) if volume is not None else ''
+        title = text if self.glyph else f'{ICON} {text}'.strip()
+        if self.title != (title or None):
+            self.title = title or None
 
 
 if __name__ == '__main__':

@@ -71,6 +71,32 @@ func render(_ width: Int, _ height: Int, _ name: String, _ draw: (CGContext) -> 
     print("wrote \(out)/\(name)")
 }
 
+/// Menu bar glyph: projector, a half-transparent beam and the screen, in black on clear.
+/// Saved as a template image, so macOS tints it for light and dark menu bars. 20pt square at 2x.
+func drawMenuGlyph(in ctx: CGContext) {
+    let k: CGFloat = 2 // points to pixels
+    func r(_ x: CGFloat, _ y: CGFloat, _ w: CGFloat, _ h: CGFloat) -> CGRect { CGRect(x: x * k, y: y * k, width: w * k, height: h * k) }
+    let ink = NSColor.black.cgColor
+
+    // Beam first, at half strength.
+    let beam = CGMutablePath()
+    beam.move(to: CGPoint(x: 8.6 * k, y: 8.4 * k)); beam.addLine(to: CGPoint(x: 14.6 * k, y: 4.6 * k))
+    beam.addLine(to: CGPoint(x: 14.6 * k, y: 15.4 * k)); beam.addLine(to: CGPoint(x: 8.6 * k, y: 11.6 * k)); beam.closeSubpath()
+    ctx.addPath(beam); ctx.setFillColor(NSColor.black.withAlphaComponent(0.45).cgColor); ctx.fillPath()
+
+    // Screen.
+    ctx.addPath(CGPath(roundedRect: r(15.4, 3.6, 2.6, 12.8), cornerWidth: 1.1 * k, cornerHeight: 1.1 * k, transform: nil))
+    ctx.setFillColor(ink); ctx.fillPath()
+
+    // Projector body with the lens cut out.
+    ctx.addPath(CGPath(roundedRect: r(1.6, 6.2, 7.6, 7.6), cornerWidth: 2.2 * k, cornerHeight: 2.2 * k, transform: nil))
+    ctx.setFillColor(ink); ctx.fillPath()
+    ctx.setBlendMode(.clear)
+    ctx.addEllipse(in: r(4.0, 8.4, 3.2, 3.2)); ctx.fillPath()
+    ctx.setBlendMode(.normal)
+}
+
+render(40, 40, "menubar.png") { drawMenuGlyph(in: $0) }
 render(1024, 1024, "icon-1024.png") { drawMark(in: $0, origin: .zero, size: 1024) }
 render(512, 512, "icon-512.png") { drawMark(in: $0, origin: .zero, size: 512) }
 render(1280, 640, "social-preview.png") { ctx in

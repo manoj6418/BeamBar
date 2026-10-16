@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="color-scheme" content="dark light">
+<title>BeamBar</title>
+<style>
+  :root {
+    --ink: rgba(255, 255, 255, 0.95);
+    --ink-2: rgba(255, 255, 255, 0.6);
+    --ink-3: rgba(255, 255, 255, 0.36);
+    --card: rgba(255, 255, 255, 0.06);
+    --card-2: rgba(255, 255, 255, 0.1);
+    --line: rgba(255, 255, 255, 0.08);
+    --beam-1: #5ee7ff;
+    --beam-2: #8b7cff;
+    --beam: linear-gradient(135deg, var(--beam-1), var(--beam-2));
+    --live: #30d158;
+    --warn: #ff9f0a;
+    --spring: cubic-bezier(0.22, 1.25, 0.36, 1);
+    --ease: cubic-bezier(0.25, 0.1, 0.25, 1);
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --ink: rgba(0, 0, 0, 0.88);
+      --ink-2: rgba(0, 0, 0, 0.55);
+      --ink-3: rgba(0, 0, 0, 0.32);
+      --card: rgba(0, 0, 0, 0.045);
+      --card-2: rgba(0, 0, 0, 0.08);
+      --line: rgba(0, 0, 0, 0.08);
+      --beam-1: #00a8d6;
+      --beam-2: #6a5cff;
+      --live: #28a745;
+    }
+  }
+  * { box-sizing: border-box; -webkit-user-select: none; user-select: none; }
+  html, body { margin: 0; background: transparent; }
+  body { width: 340px; font: 13px/1.3 -apple-system, "SF Pro Text", sans-serif; color: var(--ink); cursor: default; }
+  svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; display: block; }
+  svg.fill { fill: currentColor; stroke: none; }
+
+  .wrap { padding: 14px 14px 12px; display: flex; flex-direction: column; gap: 12px; }
+
+  /* Header */
+  .head { display: flex; align-items: center; gap: 10px; }
+  .device { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 4px 6px; margin: -4px -6px; border-radius: 10px; }
+  .device:hover { background: var(--card); }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ink-3); flex: 0 0 auto; transition: background 0.3s; }
+  .dot.live { background: var(--live); box-shadow: 0 0 0 3px color-mix(in srgb, var(--live) 22%, transparent); }
+  .dot.warn { background: var(--warn); box-shadow: 0 0 0 3px color-mix(in srgb, var(--warn) 22%, transparent); }
+  .device .text { min-width: 0; }
+  .device .name { font-weight: 650; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .device .name::after { content: " ⌄"; color: var(--ink-3); font-weight: 400; font-size: 12px; }
+  .device .sub { color: var(--ink-2); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+  .icon-btn {
+    width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; flex: 0 0 auto;
+    color: var(--ink-2); transition: background 0.15s var(--ease), color 0.15s var(--ease), transform 0.3s var(--spring);
+  }
+  .icon-btn:hover { background: var(--card-2); color: var(--ink); }
+  .icon-btn:active { transform: scale(0.9); }
+  .icon-btn svg { width: 17px; height: 17px; }
+
+  /* Banner when not connected */
+  .banner { display: none; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px; background: color-mix(in srgb, var(--warn) 14%, transparent); }
+  .banner.show { display: flex; }
+  .banner .msg { flex: 1; font-size: 12px; }
+  .banner .msg b { display: block; font-size: 12.5px; }
+  .pill-btn { padding: 6px 12px; border-radius: 999px; background: var(--beam); color: #fff; font-weight: 600; font-size: 12px; white-space: nowrap; }
+
+  /* Now playing */
+  .player { padding: 12px; border-radius: 18px; background: var(--card); display: flex; flex-direction: column; gap: 10px; }
+  .np { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .art {
+    width: 56px; height: 56px; border-radius: 12px; flex: 0 0 auto; background: var(--beam) center / cover no-repeat;
+    display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 20px;
+    box-shadow: 0 6px 16px color-mix(in srgb, var(--beam-2) 30%, transparent);
+  }
+  .art.has-image { color: transparent; }
+  .np .title { font-weight: 650; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .np .subtitle { color: var(--ink-2); font-size: 12px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .np .meta { min-width: 0; flex: 1; }
+  .progress { display: none; flex-direction: column; gap: 4px; }
+  .progress.show { display: flex; }
+  .track { position: relative; height: 5px; border-radius: 3px; background: var(--card-2); cursor: pointer; }
+  .track::before { content: ""; position: absolute; inset: -6px 0; }
+  .track .fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 3px; background: var(--beam); }
+  .times { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+  .transport { display: flex; align-items: center; justify-content: space-between; padding: 0 6px; }
+  .t-btn { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; color: var(--ink); transition: background 0.15s, transform 0.3s var(--spring); position: relative; }
+  .t-btn:hover { background: var(--card-2); }
+  .t-btn:active { transform: scale(0.88); }
+  .t-btn svg { width: 20px; height: 20px; }
+  .t-btn .n { position: absolute; font-size: 7.5px; font-weight: 700; top: 15px; }
+  .t-btn.play { width: 48px; height: 48px; background: var(--beam); color: #fff; box-shadow: 0 6px 18px color-mix(in srgb, var(--beam-2) 38%, transparent); }
+  .t-btn.play:hover { background: var(--beam); filter: brightness(1.06); }
+  .t-btn.play svg { width: 22px; height: 22px; }
+
+  /* Volume */
+  .volume { display: flex; align-items: center; gap: 10px; padding: 2px 4px; }
+  .volume .icon-btn { width: 28px; height: 28px; }
+  .volume .icon-btn.muted { color: var(--warn); }
+  input[type=range] { flex: 1; -webkit-appearance: none; appearance: none; height: 22px; background: transparent; }
+  input[type=range]::-webkit-slider-runnable-track { height: 5px; border-radius: 3px; background: linear-gradient(to right, var(--beam-1), var(--beam-2)) 0 / var(--v, 50%) 100% no-repeat, var(--card-2); }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; margin-top: -5.5px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35); }
+  .volume .level { width: 26px; text-align: right; font-size: 12px; font-weight: 600; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+
+  /* Sections */
+  .label { font-size: 10.5px; font-weight: 650; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); margin: 2px 2px -4px; }
+  .apps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .app {
+    display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 4px 8px; border-radius: 14px;
+    transition: background 0.15s, transform 0.3s var(--spring);
+  }
+  .app:hover { background: var(--card); }
+  .app:active { transform: scale(0.93); }
+  .tile { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 15px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25); }
+  .tile.add { background: var(--card-2); color: var(--ink-2); box-shadow: none; }
+  .app .name { font-size: 11px; color: var(--ink-2); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .app.on .name { color: var(--ink); font-weight: 600; }
+  .app.on .tile { outline: 2px solid var(--beam-1); outline-offset: 2px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { padding: 7px 12px; border-radius: 999px; background: var(--card); font-size: 12px; font-weight: 500; transition: background 0.15s, transform 0.3s var(--spring); }
+  .chip:hover { background: var(--card-2); }
+  .chip:active { transform: scale(0.94); }
+  .chip::before { content: "✦ "; background: var(--beam); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+  /* Quick actions */
+  .actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding-top: 10px; border-top: 1px solid var(--line); }
+  .action { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 2px; border-radius: 12px; color: var(--ink-2); font-size: 11px; transition: background 0.15s, color 0.15s, transform 0.3s var(--spring); }
+  .action:hover { background: var(--card); color: var(--ink); }
+  .action:active { transform: scale(0.93); }
+  .action svg { width: 19px; height: 19px; }
+
+  /* Small menus (devices, power) */
+  .menu {
+    position: absolute; z-index: 5; min-width: 180px; padding: 6px; border-radius: 12px;
+    background: color-mix(in srgb, Canvas 92%, transparent); color: var(--ink);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3), inset 0 0 0 0.5px var(--line);
+    -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
+    opacity: 0; transform: scale(0.95); transform-origin: top; pointer-events: none;
+    transition: opacity 0.15s var(--ease), transform 0.25s var(--spring);
+  }
+  .menu.open { opacity: 1; transform: scale(1); pointer-events: auto; }
+  .menu .item { padding: 7px 10px; border-radius: 8px; font-size: 12.5px; white-space: nowrap; }
+  .menu .item:hover { background: var(--beam); color: #fff; }
+  .menu .sep { height: 1px; margin: 4px 6px; background: var(--line); }
+  .menu .item.muted { color: var(--ink-3); pointer-events: none; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap" id="wrap">
+  <div class="head">
+    <div class="device" id="device" title="Switch device">
+      <div class="dot" id="dot"></div>
+      <div class="text"><div class="name" id="name">BeamBar</div><div class="sub" id="sub">Connecting…</div></div>
+    </div>
+    <div class="icon-btn" id="power" title="Power and sleep timer"><svg viewBox="0 0 24 24"><path d="M12 3v9"/><path d="M6.6 6.6a7.5 7.5 0 1 0 10.8 0"/></svg></div>
+    <div class="icon-btn" id="more" title="All options"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg></div>
+  </div>
+
+  <div class="banner" id="banner">
+    <div class="msg" id="banner-msg"><b>Not connected</b>Trying again…</div>
+    <div class="pill-btn" id="banner-btn">Reconnect</div>
+  </div>
+
+  <div class="player">
+    <div class="np">
+      <div class="art" id="art">▶</div>
+      <div class="meta"><div class="title" id="title">Nothing playing</div><div class="subtitle" id="subtitle">Pick an app below</div></div>
+    </div>
+    <div class="progress" id="progress">
+      <div class="track" id="track"><div class="fill" id="fill"></div></div>
+      <div class="times"><span id="pos">0:00</span><span id="dur">0:00</span></div>
+    </div>
+    <div class="transport">
+      <div class="t-btn" data-skip="-10" title="Back 10 s"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg><span class="n">10</span></div>
+      <div class="t-btn" data-key="MEDIA_PREVIOUS" title="Previous"><svg viewBox="0 0 24 24" class="fill"><path d="M6 5h2v14H6zM19 6.2v11.6a.8.8 0 0 1-1.2.7L9.5 12.7a.8.8 0 0 1 0-1.4l8.3-5.8a.8.8 0 0 1 1.2.7z"/></svg></div>
+      <div class="t-btn play" id="playpause" title="Play / Pause"><svg viewBox="0 0 24 24" class="fill" id="pp-icon"><path d="M7 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L8.5 4.64A1 1 0 0 0 7 5.5z"/></svg></div>
+      <div class="t-btn" data-key="MEDIA_NEXT" title="Next"><svg viewBox="0 0 24 24" class="fill"><path d="M16 5h2v14h-2zM5 6.2v11.6a.8.8 0 0 0 1.2.7l8.3-5.8a.8.8 0 0 0 0-1.4L6.2 5.5A.8.8 0 0 0 5 6.2z"/></svg></div>
+      <div class="t-btn" data-skip="10" title="Forward 10 s"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg><span class="n">10</span></div>
+    </div>
+    <div class="volume">
+      <div class="icon-btn" id="mute" title="Mute"><svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4z" class="fill" style="fill: currentColor; stroke: none"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg></div>
+      <input type="range" min="0" max="100" value="30" id="vol" aria-label="Volume">
+      <div class="level" id="level">–</div>
+    </div>
+  </div>
+
+  <div class="label">Apps</div>
+  <div class="apps" id="apps"></div>
+  <div class="label" id="scenes-label">Scenes</div>
+  <div class="chips" id="scenes"></div>
+
+  <div class="actions">
+    <div class="action" data-do="showRemote"><svg viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="5"/><circle cx="12" cy="8" r="2"/><path d="M12 14v.01M12 17.5v.01"/></svg>Remote</div>
+    <div class="action" data-do="phoneQR"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3M21 14v.01M17 21h4v-4M14 21v.01"/></svg>Phone</div>
+    <div class="action" data-do="openLink"><svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>Open link</div>
+    <div class="action" data-do="type"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10"/></svg>Type</div>
+  </div>
+</div>
+
+<div class="menu" id="device-menu"></div>
+<div class="menu" id="power-menu">
+  <div class="item" data-power="standby">Standby now</div>
+  <div class="item" data-power="wake">Wake</div>
+  <div class="sep"></div>
+  <div class="item" data-power="sleep" data-minutes="15">Sleep in 15 min</div>
+  <div class="item" data-power="sleep" data-minutes="30">Sleep in 30 min</div>
+  <div class="item" data-power="sleep" data-minutes="60">Sleep in 1 hour</div>
+  <div class="item" data-power="cancel" id="cancel-sleep">Cancel sleep timer</div>
+</div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const send = (msg) => window.webkit && window.webkit.messageHandlers.remote.postMessage(msg);
+  const state = { status: null, media: null, mediaAt: 0, dragging: false };
+
+  // App tiles: brand colours for well-known apps, a beam gradient for the rest.
+  const BRANDS = { netflix: '#e50914', youtube: '#ff0033', 'prime video': '#00a8e1', prime: '#00a8e1', hotstar: '#1f3a8a', jiohotstar: '#1f3a8a', disney: '#113ccf', spotify: '#1db954', 'apple tv': '#111' };
+  const tileColor = (label) => BRANDS[label.toLowerCase()] || 'linear-gradient(135deg, var(--beam-1), var(--beam-2))';
+  const fmt = (s) => { s = Math.max(0, Math.round(s || 0)); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0'); };
+
+  // Menus
+  function openMenu(menu, anchor) {
+    document.querySelectorAll('.menu.open').forEach((m) => m !== menu && m.classList.remove('open'));
+    const r = anchor.getBoundingClientRect();
+    menu.style.top = (r.bottom + 6) + 'px';
+    menu.style.left = Math.min(r.left, 340 - 194) + 'px';
+    menu.classList.toggle('open');
+  }
+  document.addEventListener('click', (e) => { if (!e.target.closest('.menu, #device, #power')) document.querySelectorAll('.menu.open').forEach((m) => m.classList.remove('open')); });
+  $('power').addEventListener('click', () => openMenu($('power-menu'), $('power')));
+  $('power-menu').addEventListener('click', (e) => {
+    const item = e.target.closest('.item'); if (!item) return;
+    send({ type: 'power', action: item.dataset.power, minutes: Number(item.dataset.minutes || 0) });
+    $('power-menu').classList.remove('open');
+  });
+  $('device').addEventListener('click', () => {
+    const s = state.status || {};
+    const menu = $('device-menu');
+    const others = s.devices || [];
+    menu.innerHTML = (others.length ? others.map((d) => `<div class="item" data-device="${d.replace(/"/g, '&quot;')}">Switch to ${d.replace(/</g, '&lt;')}</div>`).join('') : '<div class="item muted">No other devices</div>')
+      + '<div class="sep"></div><div class="item" data-act="find">Find devices on the network…</div><div class="item" data-act="reconnect">Reconnect</div>';
+    openMenu(menu, $('device'));
+  });
+  $('device-menu').addEventListener('click', (e) => {
+    const item = e.target.closest('.item'); if (!item || item.classList.contains('muted')) return;
+    if (item.dataset.device) send({ type: 'device', name: item.dataset.device });
+    else send({ type: item.dataset.act === 'find' ? 'findDevices' : 'reconnect' });
+    $('device-menu').classList.remove('open');
+  });
+  $('more').addEventListener('click', () => send({ type: 'menu' }));
+  $('banner-btn').addEventListener('click', () => send({ type: (state.status && state.status.state === 'unpaired') ? 'pair' : 'reconnect' }));
+
+  // Player
+  document.querySelectorAll('[data-key]').forEach((b) => b.addEventListener('click', () => send({ type: 'key', key: b.dataset.key })));
+  document.querySelectorAll('[data-skip]').forEach((b) => b.addEventListener('click', () => send({ type: 'media', action: 'skip', delta: Number(b.dataset.skip) })));
+  $('playpause').addEventListener('click', () => send({ type: 'media', action: 'playpause' }));
+  $('track').addEventListener('click', (e) => {
+    const m = state.media; if (!m || !m.duration) return;
+    const r = $('track').getBoundingClientRect();
+    send({ type: 'media', action: 'seek', position: m.duration * Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)) });
+  });
+
+  // Volume: update as you drag, send when you let go (and every 150 ms while dragging).
+  const vol = $('vol');
+  let volTimer = null;
+  const paintVol = () => { vol.style.setProperty('--v', vol.value + '%'); $('level').textContent = vol.value; };
+  vol.addEventListener('input', () => {
+    state.dragging = true; paintVol();
+    if (!volTimer) volTimer = setTimeout(() => { volTimer = null; send({ type: 'volume', level: Number(vol.value) }); }, 150);
+  });
+  vol.addEventListener('change', () => { send({ type: 'volume', level: Number(vol.value) }); setTimeout(() => { state.dragging = false; }, 800); });
+  $('mute').addEventListener('click', () => send({ type: 'key', key: 'VOLUME_MUTE' }));
+
+  // Quick actions
+  document.querySelectorAll('[data-do]').forEach((b) => b.addEventListener('click', () => send({ type: b.dataset.do })));
+
+  function render() {
+    const s = state.status; if (!s) return;
+    const connected = s.state === 'connected';
+    $('name').textContent = s.name || 'BeamBar';
+    const dot = $('dot');
+    dot.className = 'dot ' + (connected ? 'live' : (s.state === 'connecting' ? '' : 'warn'));
+    const bits = [];
+    if (connected) {
+      if (s.app) bits.push(s.app);
+      if (s.volume != null) bits.push(s.muted ? 'Muted' : 'Volume ' + s.volume);
+      if (s.sleep_in != null) bits.push('Sleep in ' + s.sleep_in + ' min');
+    }
+    $('sub').textContent = connected ? (bits.join(' · ') || 'Connected') : ({ unpaired: 'Not paired yet', offline: 'Offline', connecting: 'Connecting…' }[s.state] || s.state);
+
+    const banner = $('banner');
+    banner.classList.toggle('show', s.state === 'unpaired' || s.state === 'offline');
+    if (s.state === 'unpaired') { $('banner-msg').innerHTML = '<b>Pair this Mac once</b>A code appears on the TV.'; $('banner-btn').textContent = 'Pair'; }
+    else { $('banner-msg').innerHTML = '<b>Can\'t reach the TV</b>Check it\'s on and on this Wi-Fi.'; $('banner-btn').textContent = 'Reconnect'; }
+
+    // Now playing
+    const m = s.media; state.media = m; state.mediaAt = performance.now();
+    const art = $('art');
+    if (m) {
+      $('title').textContent = m.title;
+      $('subtitle').textContent = m.subtitle || s.app || '';
+      art.style.backgroundImage = m.image ? `url("${m.image}")` : '';
+      art.classList.toggle('has-image', !!m.image);
+      art.textContent = (m.title || '?')[0].toUpperCase();
+    } else {
+      $('title').textContent = s.app || (connected ? 'Nothing playing' : 'BeamBar');
+      $('subtitle').textContent = s.app ? 'Open on the TV' : 'Pick an app below';
+      art.style.backgroundImage = '';
+      art.classList.remove('has-image');
+      art.style.background = s.app ? tileColor(s.app) : '';
+      art.textContent = s.app ? s.app[0].toUpperCase() : '▶';
+    }
+    const playing = m && m.state === 'PLAYING';
+    $('pp-icon').innerHTML = playing
+      ? '<rect x="6.5" y="5" width="4" height="14" rx="1.2"/><rect x="13.5" y="5" width="4" height="14" rx="1.2"/>'
+      : '<path d="M7 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L8.5 4.64A1 1 0 0 0 7 5.5z"/>';
+    $('progress').classList.toggle('show', !!(m && m.duration));
+    tick();
+
+    // Volume
+    if (!state.dragging && s.volume != null) { vol.value = s.volume; paintVol(); }
+    $('mute').classList.toggle('muted', !!s.muted);
+
+    // Apps and scenes
+    const apps = $('apps');
+    apps.innerHTML = '';
+    for (const a of (s.apps || [])) {
+      const el = document.createElement('div');
+      el.className = 'app' + (s.app && s.app.toLowerCase() === a.label.toLowerCase() ? ' on' : '');
+      el.innerHTML = `<div class="tile" style="background:${tileColor(a.label)}">${a.label[0].toUpperCase()}</div><div class="name"></div>`;
+      el.querySelector('.name').textContent = a.label;
+      el.title = 'Open ' + a.label;
+      el.addEventListener('click', () => send({ type: 'launch', link: a.link }));
+      apps.appendChild(el);
+    }
+    const add = document.createElement('div');
+    add.className = 'app';
+    add.innerHTML = '<div class="tile add"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div><div class="name">Add app</div>';
+    add.addEventListener('click', () => send({ type: 'addApp' }));
+    apps.appendChild(add);
+
+    const scenes = $('scenes');
+    scenes.innerHTML = '';
+    for (const name of (s.scenes || [])) {
+      const el = document.createElement('div');
+      el.className = 'chip'; el.textContent = name;
+      el.addEventListener('click', () => send({ type: 'scene', name }));
+      scenes.appendChild(el);
+    }
+    $('scenes-label').hidden = scenes.hidden = !(s.scenes || []).length;
+    $('cancel-sleep').hidden = s.sleep_in == null;
+    reportSize();
+  }
+
+  // Progress moves between status updates while playing.
+  function tick() {
+    const m = state.media;
+    if (!m || !m.duration) return;
+    const elapsed = m.state === 'PLAYING' ? (performance.now() - state.mediaAt) / 1000 * (m.rate || 1) : 0;
+    const pos = Math.min(m.duration, (m.position || 0) + elapsed);
+    $('fill').style.width = (pos / m.duration * 100) + '%';
+    $('pos').textContent = fmt(pos);
+    $('dur').textContent = '-' + fmt(m.duration - pos);
+  }
+  setInterval(tick, 500);
+
+  let lastHeight = 0;
+  function reportSize() {
+    const h = Math.ceil($('wrap').getBoundingClientRect().height);
+    if (h && h !== lastHeight) { lastHeight = h; send({ type: 'resize', height: h }); }
+  }
+  new ResizeObserver(reportSize).observe($('wrap'));
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') send({ type: 'close' });
+    else if (e.key === ' ') { e.preventDefault(); send({ type: 'media', action: 'playpause' }); }
+  });
+
+  window.remote = { setStatus(s) { state.status = s; render(); } };
+})();
+</script>
+</body>
+</html>

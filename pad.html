@@ -8,7 +8,7 @@
   :root {
     --w: 300px;
     --radius: 28px;
-    --glass: rgba(28, 28, 31, 0.6);
+    --glass: rgba(20, 22, 36, 0.66);
     --ink: rgba(255, 255, 255, 0.94);
     --ink-2: rgba(255, 255, 255, 0.56);
     --ink-3: rgba(255, 255, 255, 0.32);
@@ -21,6 +21,11 @@
     --fill: rgba(255, 255, 255, 0.92);
     --glow: rgba(255, 255, 255, 0.16);
     --accent: #ff453a;
+    --beam-1: #5ee7ff;
+    --beam-2: #8b7cff;
+    --beam: linear-gradient(135deg, var(--beam-1), var(--beam-2));
+    --beam-glow: rgba(94, 231, 255, 0.22);
+    --live: #30d158;
     --spring: cubic-bezier(0.22, 1.25, 0.36, 1);
     --ease: cubic-bezier(0.25, 0.1, 0.25, 1);
   }
@@ -39,6 +44,10 @@
       --fill: rgba(20, 20, 24, 0.9);
       --glow: rgba(255, 255, 255, 0.6);
       --accent: #ff3b30;
+      --beam-1: #00a8d6;
+      --beam-2: #6a5cff;
+      --beam-glow: rgba(0, 168, 214, 0.18);
+      --live: #28a745;
     }
   }
 
@@ -72,7 +81,7 @@
     pointer-events: none;
     background:
       radial-gradient(120% 55% at 18% -8%, var(--glow), transparent 62%),
-      radial-gradient(70% 40% at 100% 110%, rgba(255, 255, 255, 0.05), transparent 60%);
+      radial-gradient(80% 45% at 100% 105%, color-mix(in srgb, var(--beam-2) 16%, transparent), transparent 65%);
   }
 
   .close {
@@ -118,6 +127,16 @@
     text-align: center;
     min-width: 0;
   }
+  .pill { position: relative; }
+  .pill::before {
+    content: ""; position: absolute; left: 14px; top: 50%;
+    width: 7px; height: 7px; margin-top: -3.5px; border-radius: 50%;
+    background: var(--ink-3);
+    transition: background 0.3s var(--ease), box-shadow 0.3s var(--ease);
+  }
+  .pill.live::before { background: var(--live); box-shadow: 0 0 0 3px color-mix(in srgb, var(--live) 22%, transparent); animation: live 2.4s ease-in-out infinite; }
+  .pill.alert::before { background: #ff9f0a; box-shadow: 0 0 0 3px rgba(255, 159, 10, 0.2); }
+  @keyframes live { 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--live) 8%, transparent); } }
   .pill .name { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
   .pill .name::after { content: " ›"; color: var(--ink-3); font-weight: 400; }
   .pill .sub { font-size: 10.5px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
@@ -149,8 +168,8 @@
 
   /* ---------- shared control look ---------- */
   .ctrl {
-    background: var(--ctrl);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 -1px 0 rgba(0, 0, 0, 0.12);
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.035), transparent 60%), var(--ctrl);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), inset 0 -1px 0 rgba(0, 0, 0, 0.14), 0 1px 2px rgba(0, 0, 0, 0.12);
     transition: transform 0.42s var(--spring), background 0.18s var(--ease), box-shadow 0.18s var(--ease);
     will-change: transform;
   }
@@ -161,9 +180,9 @@
     transition-duration: 0.08s;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 0 0 6px rgba(255, 255, 255, 0.04);
   }
-  .ctrl.lit { background: var(--fill); color: var(--glass); }
-  .ctrl.lit svg { color: var(--glass); }
-  .ctrl.lit:hover { background: var(--fill); filter: brightness(1.08); }
+  .ctrl.lit { background: var(--beam); color: #fff; }
+  .ctrl.lit svg { color: #fff; }
+  .ctrl.lit:hover { background: var(--beam); filter: brightness(1.08); }
   svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; display: block; }
   svg.fill { fill: currentColor; stroke: none; }
 
@@ -212,7 +231,7 @@
     transition: transform 0.25s var(--spring);
   }
   .media .bar:hover .track, .media .bar.dragging .track { transform: scaleY(1.6); }
-  .media .progress { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--fill); }
+  .media .progress { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--beam); }
   .media .times { display: flex; justify-content: space-between; font-size: 10px; color: var(--ink-2); font-variant-numeric: tabular-nums; margin-top: -4px; }
 
   /* ---------- touch surface ---------- */
@@ -221,7 +240,9 @@
     position: relative;
     height: 222px;
     border-radius: 24px;
-    background: var(--ctrl);
+    background:
+      radial-gradient(circle, color-mix(in srgb, var(--ink) 9%, transparent) 1px, transparent 1.4px) 0 0 / 18px 18px,
+      var(--ctrl);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), inset 0 -1px 0 rgba(0, 0, 0, 0.14), inset 0 0 0 0.5px rgba(255, 255, 255, 0.04);
     overflow: hidden;
     cursor: default;
@@ -234,17 +255,40 @@
     pointer-events: none;
     opacity: 0;
     transition: opacity 0.35s var(--ease);
-    background: radial-gradient(150px circle at var(--px) var(--py), var(--glow), transparent 72%);
+    background: radial-gradient(160px circle at var(--px) var(--py), var(--beam-glow), transparent 72%);
   }
   .surface:hover .light { opacity: 1; }
   .surface .flash { position: absolute; inset: 0; pointer-events: none; opacity: 0; }
-  .surface .flash.up    { background: linear-gradient(to bottom, var(--fill), transparent 45%); }
-  .surface .flash.down  { background: linear-gradient(to top, var(--fill), transparent 45%); }
-  .surface .flash.left  { background: linear-gradient(to right, var(--fill), transparent 45%); }
-  .surface .flash.right { background: linear-gradient(to left, var(--fill), transparent 45%); }
-  .surface .flash.center { background: radial-gradient(120px circle at var(--px) var(--py), var(--fill), transparent 70%); }
+  .surface .flash.up    { background: linear-gradient(to bottom, color-mix(in srgb, var(--beam-1) 55%, transparent), transparent 45%); }
+  .surface .flash.down  { background: linear-gradient(to top, color-mix(in srgb, var(--beam-1) 55%, transparent), transparent 45%); }
+  .surface .flash.left  { background: linear-gradient(to right, color-mix(in srgb, var(--beam-1) 55%, transparent), transparent 45%); }
+  .surface .flash.right { background: linear-gradient(to left, color-mix(in srgb, var(--beam-1) 55%, transparent), transparent 45%); }
+  .surface .flash.center { background: radial-gradient(120px circle at var(--px) var(--py), color-mix(in srgb, var(--beam-2) 60%, transparent), transparent 70%); }
+  .surface .guides { position: absolute; inset: 0; pointer-events: none; transition: opacity 0.4s var(--ease); }
+  .surface .guides i { font-style: normal; }
+  .surface .guides .a {
+    position: absolute; width: 9px; height: 9px;
+    border: solid var(--ink-3); border-width: 2px 2px 0 0; border-radius: 1px;
+  }
+  .surface .guides .up    { left: 50%; top: 14px;    margin-left: -4.5px; transform: rotate(-45deg); }
+  .surface .guides .down  { left: 50%; bottom: 14px; margin-left: -4.5px; transform: rotate(135deg); }
+  .surface .guides .left  { top: 50%; left: 14px;    margin-top: -4.5px;  transform: rotate(-135deg); }
+  .surface .guides .right { top: 50%; right: 14px;   margin-top: -4.5px;  transform: rotate(45deg); }
+  .surface .guides .ok {
+    position: absolute; left: 50%; top: 50%;
+    width: 64px; height: 64px; margin: -32px 0 0 -32px;
+    border-radius: 50%;
+    border: 1.5px solid color-mix(in srgb, var(--ink) 14%, transparent);
+    display: grid; place-items: center;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: var(--ink-3);
+  }
+  .surface.typing .guides { opacity: 0; }
+  .surface .guides .a, .surface .guides .ok { transition: border-color 0.15s var(--ease), color 0.15s var(--ease), background 0.15s var(--ease); }
+  .surface[data-zone="up"] .guides .up, .surface[data-zone="down"] .guides .down,
+  .surface[data-zone="left"] .guides .left, .surface[data-zone="right"] .guides .right { border-color: var(--beam-1); }
+  .surface[data-zone="center"] .guides .ok { border-color: var(--beam-1); color: var(--beam-1); background: var(--beam-glow); }
   .surface .hint {
-    position: absolute; inset: 0;
+    position: absolute; left: 0; right: 0; bottom: 38px;
     display: grid; place-items: center;
     text-align: center;
     color: var(--ink-3);
@@ -280,6 +324,13 @@
   .typer { background: color-mix(in srgb, var(--glass) 100%, transparent); background: var(--glass); }
   .surface.typing { background: var(--ctrl-press); }
   .typer .label { font-size: 11px; color: var(--ink-2); }
+  /* A real text box so phones show their keyboard; invisible, it covers the overlay so a tap refocuses it. */
+  .typer input {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    opacity: 0; border: 0; padding: 0; margin: 0;
+    font-size: 16px; color: transparent; background: transparent; caret-color: transparent;
+    -webkit-user-select: text; user-select: text;
+  }
   .typer .text {
     font-size: 17px; font-weight: 500;
     max-width: 100%;
@@ -299,55 +350,58 @@
   @keyframes blink { 50% { opacity: 0; } }
 
   /* ---------- cluster ---------- */
-  .cluster { display: grid; grid-template-columns: 1fr 1fr 44px; grid-template-rows: repeat(3, 56px); gap: 12px 14px; }
+  .cluster { display: grid; grid-template-columns: 1fr 1fr 48px; grid-template-rows: repeat(3, 60px); gap: 10px 12px; }
   .key {
     position: relative;
-    height: 56px;
-    border-radius: 28px;
-    display: grid; place-items: center;
+    height: 60px;
+    border-radius: 20px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
     color: var(--ink);
   }
-  .key svg { width: 22px; height: 22px; }
+  .key svg { width: 21px; height: 21px; }
+  .key .lbl { font-size: 10px; font-weight: 500; color: var(--ink-2); letter-spacing: 0.01em; }
+  .key.primary { background: var(--beam); color: #fff; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 6px 18px color-mix(in srgb, var(--beam-2) 35%, transparent); }
+  .key.primary .lbl { color: rgba(255, 255, 255, 0.85); }
+  .key.primary:hover { background: var(--beam); filter: brightness(1.06); }
+  .key.primary.pressed, .key.primary:active { background: var(--beam); filter: brightness(0.94); }
   .key.listening { background: var(--accent); color: #fff; }
   .key.listening svg { color: #fff; }
+  .key.listening .lbl { color: rgba(255, 255, 255, 0.85); }
   .key.listening::after {
     content: "";
     position: absolute; inset: -4px;
-    border-radius: 32px;
+    border-radius: 24px;
     border: 2px solid var(--accent);
     opacity: 0.6;
     animation: ring 1.1s ease-out infinite;
   }
   @keyframes ring { from { transform: scale(1); opacity: 0.6; } to { transform: scale(1.18); opacity: 0; } }
-  .key.on { background: var(--fill); color: var(--glass); }
-  .key.on svg { color: var(--glass); }
+  .key.on { background: var(--beam); color: #fff; }
+  .key.on svg { color: #fff; }
+  .key.on .lbl { color: rgba(255, 255, 255, 0.85); }
 
   .volume {
     grid-row: 1 / span 3;
     grid-column: 3;
     position: relative;
     height: 100%;
-    border-radius: 22px;
+    border-radius: 20px;
     overflow: hidden;
     cursor: ns-resize;
     transition: transform 0.4s var(--spring);
   }
   .volume.pressed { transform: scaleX(1.08); }
-  .volume .fill { position: absolute; left: 0; right: 0; bottom: 0; height: 30%; background: var(--fill); transition: height 0.25s var(--ease); }
+  .volume .fill { position: absolute; left: 0; right: 0; bottom: 0; height: 30%; background: linear-gradient(to top, var(--beam-2), var(--beam-1)); transition: height 0.25s var(--ease); }
   .volume.pressed .fill { transition: none; }
-  .volume .vicon { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); mix-blend-mode: difference; color: #fff; pointer-events: none; }
+  .volume .vicon { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); color: #fff; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.3)); pointer-events: none; }
   .volume .level {
     position: absolute; left: 50%; top: 10px;
     transform: translateX(-50%);
     font-size: 11px; font-weight: 600;
     font-variant-numeric: tabular-nums;
-    mix-blend-mode: difference;
-    color: #fff;
+    color: var(--ink-2);
     pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.25s var(--ease);
   }
-  .volume:hover .level, .volume.pressed .level { opacity: 1; }
 
   /* ---------- chip rows ---------- */
   .row { display: flex; flex-wrap: wrap; gap: 8px; min-height: 34px; }
@@ -365,7 +419,7 @@
   }
   .chip.icon { width: 34px; padding: 0; justify-content: center; color: var(--ink-2); }
   .chip.icon svg { width: 16px; height: 16px; }
-  .chip.scene::before { content: "✦"; font-size: 11px; color: var(--ink-2); }
+  .chip.scene::before { content: "✦"; font-size: 11px; background: var(--beam); -webkit-background-clip: text; background-clip: text; color: transparent; }
 
   /* ---------- command palette ---------- */
   .palette {
@@ -422,13 +476,54 @@
     transform: translate(-50%, -50%);
     padding: 10px 16px;
     border-radius: 14px;
-    background: var(--fill);
-    color: var(--glass);
+    background: var(--beam);
+    color: #fff;
+    box-shadow: 0 10px 30px color-mix(in srgb, var(--beam-2) 40%, transparent);
     font-size: 15px; font-weight: 600;
     pointer-events: none;
     opacity: 0;
     z-index: 4;
   }
+
+  /* ---------- phone sheet (in-page prompt, so phone actions don't open dialogs on the Mac) ---------- */
+  .sheet-backdrop {
+    position: fixed; inset: 0; z-index: 20;
+    background: rgba(5, 6, 14, 0.5);
+    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+    display: flex; align-items: flex-end; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity 0.2s var(--ease);
+  }
+  .sheet-backdrop.open { opacity: 1; pointer-events: auto; }
+  .sheet {
+    width: 100%; max-width: 420px;
+    padding: 18px 18px max(18px, env(safe-area-inset-bottom));
+    border-radius: 24px 24px 0 0;
+    background: #171a2b;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 -10px 40px rgba(0, 0, 0, 0.4);
+    transform: translateY(24px); transition: transform 0.32s var(--spring);
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .sheet-backdrop.open .sheet { transform: translateY(0); }
+  .sheet .grab { width: 36px; height: 5px; border-radius: 3px; background: rgba(255, 255, 255, 0.2); align-self: center; margin-bottom: 2px; }
+  .sheet h3 { margin: 0; font-size: 17px; font-weight: 650; color: #fff; }
+  .sheet p { margin: -6px 0 2px; font-size: 13px; color: rgba(255, 255, 255, 0.6); line-height: 1.4; }
+  .sheet input {
+    width: 100%; height: 46px; padding: 0 14px;
+    border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.06); color: #fff;
+    font: 16px -apple-system, "SF Pro Text", sans-serif; outline: none;
+    -webkit-user-select: text; user-select: text;
+  }
+  .sheet input:focus { border-color: var(--beam-1); box-shadow: 0 0 0 3px var(--beam-glow); }
+  .sheet input::placeholder { color: rgba(255, 255, 255, 0.35); }
+  .sheet .buttons { display: grid; grid-template-columns: 1fr 1.4fr; gap: 10px; margin-top: 4px; }
+  .sheet button {
+    height: 48px; border: 0; border-radius: 14px;
+    font: 600 16px -apple-system, "SF Pro Text", sans-serif;
+  }
+  .sheet .cancel { background: rgba(255, 255, 255, 0.08); color: #fff; }
+  .sheet .go { background: var(--beam); color: #fff; box-shadow: 0 6px 18px color-mix(in srgb, var(--beam-2) 35%, transparent); }
+  .sheet .go:disabled { opacity: 0.45; box-shadow: none; }
 
   @media (prefers-reduced-motion: reduce) {
     * { transition: none !important; animation: none !important; }
@@ -484,25 +579,27 @@
     <div class="light"></div>
     <div class="flash" id="flash"></div>
     <div class="grip" id="grip"></div>
-    <div class="hint" id="hint">Swipe to navigate<br>Click to select</div>
+    <div class="guides"><i class="a up"></i><i class="a down"></i><i class="a left"></i><i class="a right"></i><i class="ok">OK</i></div>
+    <div class="hint" id="hint">Tap an edge or swipe to move</div>
     <div class="typer" id="typer">
-      <div class="label">Typing on projector · ⏎ submit · esc stop</div>
+      <div class="label" id="typer-label">Typing on projector · ⏎ submit · esc stop</div>
       <div class="text" id="typed"></div>
+      <input id="typer-input" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="send" aria-label="Type on the TV">
     </div>
   </div>
 
   <div class="cluster">
-    <div class="key ctrl" data-key="BACK" title="Back (Esc)"><svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg></div>
-    <div class="key ctrl" data-key="HOME" title="Home (H)"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/></svg></div>
+    <div class="key ctrl" data-key="BACK" title="Back (Esc)"><svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg><span class="lbl">Back</span></div>
+    <div class="key ctrl" data-key="HOME" title="Home (H)"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8"/></svg><span class="lbl">Home</span></div>
     <div class="volume ctrl" id="volume" title="Volume (+ / −)">
       <div class="fill" id="vfill"></div>
       <div class="level" id="vlevel">30</div>
       <svg class="vicon" viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4z" style="fill:currentColor;stroke:none"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>
     </div>
-    <div class="key ctrl" data-key="MEDIA_PLAY_PAUSE" title="Play / Pause (Space)"><svg viewBox="0 0 24 24" class="fill"><path d="M4 5.5v13a1 1 0 0 0 1.5.86L13 12 5.5 4.64A1 1 0 0 0 4 5.5z"/><rect x="15" y="5" width="2.4" height="14" rx="1"/><rect x="19.2" y="5" width="2.4" height="14" rx="1"/></svg></div>
-    <div class="key ctrl" id="mic" title="Hold to talk"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6"/></svg></div>
-    <div class="key ctrl" data-key="SETTINGS" title="Settings (S)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></div>
-    <div class="key ctrl" id="keyboard" title="Type on the projector (T)"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10"/></svg></div>
+    <div class="key ctrl primary" data-key="MEDIA_PLAY_PAUSE" title="Play / Pause (Space)"><svg viewBox="0 0 24 24" class="fill"><path d="M4 5.5v13a1 1 0 0 0 1.5.86L13 12 5.5 4.64A1 1 0 0 0 4 5.5z"/><rect x="15" y="5" width="2.4" height="14" rx="1"/><rect x="19.2" y="5" width="2.4" height="14" rx="1"/></svg><span class="lbl">Play</span></div>
+    <div class="key ctrl" id="mic" title="Hold to talk"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6"/></svg><span class="lbl">Voice</span></div>
+    <div class="key ctrl" data-key="SETTINGS" title="Settings (S)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span class="lbl">Settings</span></div>
+    <div class="key ctrl" id="keyboard" title="Type on the projector (T)"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10"/></svg><span class="lbl">Type</span></div>
   </div>
 
   <div class="row" id="apps"></div>
@@ -513,6 +610,15 @@
     <div class="list" id="palette-list"></div>
   </div>
   <div class="toast" id="toast"></div>
+</div>
+<div class="sheet-backdrop" id="sheet">
+  <form class="sheet" id="sheet-form" autocomplete="off" novalidate>
+    <div class="grab"></div>
+    <h3 id="sheet-title"></h3>
+    <p id="sheet-hint"></p>
+    <div id="sheet-fields" style="display: flex; flex-direction: column; gap: 10px;"></div>
+    <div class="buttons"><button type="button" class="cancel" id="sheet-cancel">Cancel</button><button type="submit" class="go" id="sheet-go"></button></div>
+  </form>
 </div>
 
 <script>
@@ -578,6 +684,7 @@
       menu.hidden = false;
       return;
     }
+    if (state.status === 'unpaired' && window.__phone) { pairFromPhone(); return; }
     send({ type: state.status === 'unpaired' ? 'pair' : 'reconnect' });
   });
   const powerMenuHtml = document.getElementById('power-menu').innerHTML;
@@ -775,10 +882,19 @@
   const dirOf = (dx, dy) => Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
   const KEY = { up: 'DPAD_UP', down: 'DPAD_DOWN', left: 'DPAD_LEFT', right: 'DPAD_RIGHT' };
   function step(dir) { sendKey(KEY[dir]); pulse(dir); hideHint(); send({ type: 'haptic', kind: 'step' }); }
+  // Where a tap lands, like a D-pad: the middle (the OK ring) selects, anywhere else moves toward that edge.
+  // Coordinates are scaled to the pad's half-width/height so a wide pad still splits evenly.
+  function zoneAt(clientX, clientY) {
+    const r = surface.getBoundingClientRect();
+    const nx = (clientX - r.left - r.width / 2) / (r.width / 2);
+    const ny = (clientY - r.top - r.height / 2) / (r.height / 2);
+    return Math.hypot(nx, ny) < 0.36 ? 'center' : dirOf(nx, ny);
+  }
   surface.addEventListener('pointermove', (e) => {
     const r = surface.getBoundingClientRect();
     surface.style.setProperty('--px', (e.clientX - r.left) + 'px');
     surface.style.setProperty('--py', (e.clientY - r.top) + 'px');
+    if (e.pointerType === 'mouse' && !state.typing) surface.dataset.zone = zoneAt(e.clientX, e.clientY);
     if (!origin) return;
     samples.push({ x: e.clientX, t: performance.now() });
     if (samples.length > 6) samples.shift();
@@ -821,7 +937,11 @@
     return Math.max(-120, Math.min(120, Math.round(v * 25 / 5) * 5));
   }
   const release = () => {
-    if (origin && !moved) { sendKey('DPAD_CENTER'); pulse('center'); hideHint(); send({ type: 'haptic', kind: 'press' }); }
+    if (origin && !moved) {
+      const zone = zoneAt(origin.x, origin.y);
+      if (zone === 'center') { sendKey('DPAD_CENTER'); pulse('center'); hideHint(); send({ type: 'haptic', kind: 'press' }); }
+      else step(zone);
+    }
     else if (scrub.active) {
       const secs = scrub.secs || flingSeconds();
       $('toast').style.opacity = 0;
@@ -833,6 +953,7 @@
   };
   surface.addEventListener('pointerup', release);
   surface.addEventListener('pointercancel', () => { origin = null; moved = false; surface.classList.remove('pressed'); });
+  surface.addEventListener('pointerleave', () => { delete surface.dataset.zone; });
   surface.addEventListener('wheel', (e) => {
     e.preventDefault();
     if (state.typing) return;
@@ -875,6 +996,11 @@
   mic.addEventListener('pointercancel', stopVoice);
 
   // Typing mode
+  const typerInput = $('typer-input');
+  // Phones and tablets have no physical keyboard: they need a focused text box to show theirs.
+  const softKeyboard = !!window.__phone || matchMedia('(pointer: coarse)').matches;
+  if (softKeyboard) $('typer-label').textContent = 'Typing on the TV · close the keyboard to stop';
+  else typerInput.remove();
   function setTyping(on) {
     state.typing = on;
     state.buffer = '';
@@ -882,6 +1008,33 @@
     surface.classList.toggle('typing', on);
     keyboard.classList.toggle('on', on);
     powerMenu.hidden = true;
+    if (softKeyboard) {
+      typerInput.value = '';
+      if (on) typerInput.focus(); else typerInput.blur();
+    }
+  }
+  if (softKeyboard) {
+    const typeChar = (ch) => { state.buffer += ch; send({ type: 'text', text: state.buffer, char: ch }); };
+    const deleteChar = () => { state.buffer = state.buffer.slice(0, -1); send({ type: 'text', text: state.buffer, backspace: true }); };
+    typerInput.addEventListener('input', () => {
+      // Send only what changed, so autocorrect and deletes still map to keystrokes.
+      const value = typerInput.value, before = state.buffer;
+      let same = 0;
+      while (same < value.length && same < before.length && value[same] === before[same]) same++;
+      for (let i = before.length; i > same; i--) deleteChar();
+      for (const ch of value.slice(same)) typeChar(ch);
+      typed.textContent = state.buffer;
+    });
+    typerInput.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Enter') { e.preventDefault(); sendKey('ENTER'); }
+      else if (e.key === 'Backspace' && !typerInput.value) sendKey('DEL');
+    });
+    // Closing the keyboard stops typing. Wait a tick so a tap on the Type button itself
+    // (which also blurs the box) toggles once instead of off-then-on.
+    typerInput.addEventListener('blur', () => setTimeout(() => {
+      if (state.typing && document.activeElement !== typerInput) setTyping(false);
+    }, 0));
   }
   bindPress(keyboard);
   keyboard.addEventListener('click', (e) => { e.stopPropagation(); setTyping(!state.typing); });
@@ -906,15 +1059,84 @@
     el.addEventListener('click', (e) => { e.stopPropagation(); press(el); onClick(); });
     return el;
   }
+  // Keep the sheet in the visible part of the screen, so it sits just above the phone keyboard
+  // instead of under it (iOS slides the keyboard over fixed elements).
+  function fitSheet() {
+    const vv = window.visualViewport, backdrop = $('sheet');
+    if (!vv) return;
+    backdrop.style.top = vv.offsetTop + 'px';
+    backdrop.style.height = vv.height + 'px';
+    backdrop.style.bottom = 'auto';
+  }
+  if (window.visualViewport) {
+    visualViewport.addEventListener('resize', fitSheet);
+    visualViewport.addEventListener('scroll', fitSheet);
+  }
+
+  // In-page prompt for the phone: resolves with the field values, or null if cancelled.
+  function askSheet(title, hint, fields, action) {
+    const backdrop = $('sheet'), form = $('sheet-form'), go = $('sheet-go'), box = $('sheet-fields');
+    $('sheet-title').textContent = title;
+    $('sheet-hint').textContent = hint;
+    go.textContent = action;
+    box.innerHTML = '';
+    const inputs = fields.map((f) => {
+      const input = document.createElement('input');
+      input.name = f.name; input.placeholder = f.placeholder || ''; input.value = f.value || '';
+      input.type = f.type || 'text'; input.autocapitalize = 'off'; input.spellcheck = false;
+      input.setAttribute('autocorrect', 'off'); input.enterKeyHint = 'go';
+      box.appendChild(input);
+      return input;
+    });
+    const valid = (i, f) => f.type === 'url' ? /^https?:\/\/[^\s.]+\.\S+/.test(i.value.trim()) : !!i.value.trim();
+    const ready = () => { go.disabled = inputs.some((i, n) => !valid(i, fields[n])); };
+    inputs.forEach((i) => i.addEventListener('input', ready));
+    ready();
+    backdrop.classList.add('open');
+    fitSheet();
+    inputs[0].focus(); // inside the tap that opened it, so the phone keyboard comes up
+    return new Promise((resolve) => {
+      const close = (value) => {
+        backdrop.classList.remove('open');
+        inputs.forEach((i) => i.blur());
+        form.onsubmit = null; $('sheet-cancel').onclick = null; backdrop.onpointerdown = null;
+        resolve(value);
+      };
+      form.onsubmit = (e) => { e.preventDefault(); if (!go.disabled) close(Object.fromEntries(inputs.map((i) => [i.name, i.value.trim()]))); };
+      $('sheet-cancel').onclick = () => close(null);
+      backdrop.onpointerdown = (e) => { if (e.target === backdrop) close(null); };
+    });
+  }
+  async function openLinkFromPhone() {
+    const r = await askSheet('Open on the TV', 'Paste a YouTube, Netflix or Prime Video link, or type something to search YouTube.',
+      [{ name: 'text', placeholder: 'Link or search' }], 'Open');
+    if (r) { send({ type: 'openLink', text: r.text }); toast('Opening…'); }
+  }
+  async function pairFromPhone() {
+    send({ type: 'pairStart' }); // the TV shows a code
+    const r = await askSheet('Pair with your TV', 'Type the code shown on the TV screen.',
+      [{ name: 'code', placeholder: 'Code' }], 'Pair');
+    if (r) send({ type: 'pairCode', code: r.code });
+  }
+  async function addAppFromPhone() {
+    const r = await askSheet('Add an app', 'It appears as a button here and in the Mac menu.', [
+      { name: 'label', placeholder: 'Name, e.g. JioHotstar' },
+      { name: 'link', placeholder: 'https://www.hotstar.com', value: 'https://', type: 'url' },
+    ], 'Add');
+    if (!r) return;
+    send({ type: 'addApp', label: r.label, link: r.link });
+    toast('Added ' + r.label);
+  }
+
   function renderRows() {
     const apps = $('apps');
     apps.innerHTML = '';
     for (const app of state.apps) apps.appendChild(chip(app.label, '', () => send({ type: 'launch', link: app.link })));
-    const link = chip('', 'icon', () => send({ type: 'openLink' }));
+    const link = chip('', 'icon', () => (window.__phone ? openLinkFromPhone() : send({ type: 'openLink' })));
     link.title = 'Open a video link or search YouTube (⌘V to paste)';
     link.innerHTML = '<svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>';
     apps.appendChild(link);
-    const add = chip('', 'icon', () => send({ type: 'addApp' }));
+    const add = chip('', 'icon', () => (window.__phone ? addAppFromPhone() : send({ type: 'addApp' })));
     add.title = 'Add app';
     add.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>';
     apps.appendChild(add);
@@ -966,11 +1188,13 @@
 
   // Status from Python
   window.remote = {
+    toast(text) { toast(text); },
     setStatus(s) {
       state.status = s.state;
       $('name').textContent = s.name || 'Projector';
       const sub = $('sub');
       pill.classList.remove('alert');
+      pill.classList.toggle('live', s.state === 'connected');
       if (s.state === 'connected') {
         const parts = [];
         if (state.listening) parts.push('Listening…');

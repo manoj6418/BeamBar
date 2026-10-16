@@ -21,11 +21,11 @@ cd BeamBar
 The script creates a virtual environment, installs the dependencies, puts the `beambar` command on your PATH and starts the app. Then:
 
 1. Turn on the TV or projector and make sure it's on the same Wi-Fi as your Mac.
-2. Click **📽** in the menu bar. BeamBar finds the device by itself; if there are several, choose one under **Devices**.
+2. Click the BeamBar icon (a small projector) in the menu bar. BeamBar finds the device by itself; if there are several, choose one under **Devices**.
 3. Choose **Pair with projector…** and type the code shown on the screen. Pairing is a one-time step per device.
 4. For global hotkeys, allow BeamBar under **System Settings → Privacy & Security → Accessibility** when asked.
 
-Use **📽 → Start at login** to keep it running. To restart it: `./run.sh`. Logs: `~/Library/Logs/beambar.log`. Settings: `~/.config/beambar/config.json` (edit, then restart).
+Use **BeamBar menu → Start at login** to keep it running. To restart it: `./run.sh`. Logs: `~/Library/Logs/beambar.log`. Settings: `~/.config/beambar/config.json` (edit, then restart).
 
 ## Command line (`beambar`)
 
@@ -49,7 +49,7 @@ The command talks to the running app over a local socket, so anything that can r
 
 ## Floating remote
 
-- **📽 → Show remote**, `⌃⌥R` from anywhere, or `beambar remote toggle`.
+- **BeamBar menu → Show remote**, `⌃⌥R` from anywhere, or `beambar remote toggle`.
 - The red dot hides it, the yellow dot collapses it to a compact bar (`⌘M`). It remembers where you left it.
 - Touch surface: swipe to navigate, click for OK. During playback, a horizontal drag scrubs with a live ±seconds preview.
 - `⌘K` or `/` opens the command palette: every command above, plus free text as a YouTube search with results (and TMDB posters if you set `tmdb_api_key`).
@@ -62,11 +62,15 @@ The command talks to the running app over a local socket, so anything that can r
 
 ## Menu bar
 
-Scroll on the **📽** icon to change the volume. Set `"menubar": "nowplaying"` to show what's playing instead of the volume.
+Click the BeamBar icon for the **control center**: the device and its status, what's playing (with progress and playback controls), volume, your apps and scenes, and quick buttons for the remote, the phone QR code, opening a link and typing. Right-click (or Ctrl-click) the icon for the full menu. `beambar center` opens it from Shortcuts or Raycast.
+
+Scroll on the menu bar icon to change the volume. Set `"menubar": "nowplaying"` to show what's playing instead of the volume.
 
 ## Phone remote
 
-Any phone on the same Wi-Fi can open `http://beambar.local:8788` (or the address under **📽 → Phone remote link…**). Add it to the home screen for an app-like remote. It works on the local network only and has no password; turn it off with `"phone_remote": false`.
+Choose **BeamBar menu → Phone remote (QR code)…** (or run `beambar phone`) and point your phone's camera at the code. It opens `http://beambar.local:8788`, a link that stays the same even when your Mac's IP address changes. If a phone can't open `.local` links (some Android phones), the panel switches to the IP address. Add it to the home screen for an app-like remote.
+
+It works on the local network only and has no password; turn it off with `"phone_remote": false`.
 
 ## Scenes
 
@@ -95,11 +99,11 @@ Triggers: `projector_online`, `projector_offline`, `app_changed` (optional `app`
 
 ## Devices
 
-**📽 → Devices → Find devices on the network…** adds every Google TV / Android TV device that answers. Switch from the menu, the name on the remote, or `beambar device <name>`. Each device needs its own pairing.
+**BeamBar menu → Devices → Find devices on the network…** adds every Google TV / Android TV device that answers. Switch from the menu, the name on the remote, or `beambar device <name>`. Each device needs its own pairing.
 
 ## Cast from your Mac
 
-**📽 → Cast from this Mac** plays a local file (MP4, MOV, WebM, MP3, images; served from your Mac on port 8765) or a direct URL. **Send current browser tab** (`⌘T` in the menu) opens the front Chrome, Brave, Edge or Safari tab on the TV; YouTube links play directly.
+**BeamBar menu → Cast from this Mac** plays a local file (MP4, MOV, WebM, MP3, images; served from your Mac on port 8765) or a direct URL. **Send current browser tab** (`⌘T` in the menu) opens the front Chrome, Brave, Edge or Safari tab on the TV; YouTube links play directly.
 
 ## Game controller
 
